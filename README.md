@@ -24,6 +24,18 @@
 - **資料平衡 (Resample)**: 內建資料集重採樣功能，支援固定數量或比例平衡各類別樣本，解決資料不均問題。
 - **現代化管理**: 使用 `uv` 進行極速依賴管理與環境隔離。
 
+## FastAPI 與 Streamlit 串接
+
+本分支新增非同步植物病蟲害辨識 API，並將結果串接至 `app_api.py`：
+
+| Method | Path | 用途 |
+|---|---|---|
+| `GET` | `/v1/health` | 健康檢查 |
+| `POST` | `/v1/tasks` | 建立辨識任務 |
+| `GET` | `/v1/tasks/{task_id}` | 輪詢任務狀態與結果 |
+
+API 會依序回傳 `PENDING`、`PROCESSING`、`SUCCEEDED` 或 `FAILED`。執行前請確認 `output/best_model.pth` 與 `output/classes.json` 已準備完成。
+
 ## 安裝與快速開始
 
 ### 環境需求
@@ -92,10 +104,37 @@ uv run python train.py --batch-size 4 --epochs 50
 python evaluate.py --model-path output/best_model.pth --data-dir dataset/test
 ```
 
-### 3. Web 介面 (Streamlit)
+### 3. Web 介面（FastAPI + Streamlit）
+
+本機測試需在專案根目錄開啟三個終端機。
+
+終端機 1：啟動 FastAPI（模型只載入一次，因此使用一個 worker）
+
+```powershell
+uv run uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+Swagger 文件：http://127.0.0.1:8000/docs
+
+終端機 2：啟動圖片伺服器，模擬正式環境的 Signed URL
+
+```powershell
+New-Item -ItemType Directory -Force ".\runtime\streamlit_uploads" | Out-Null
+uv run python -m http.server 9000 --bind 127.0.0.1 --directory ".\runtime\streamlit_uploads"
+```
+
+終端機 3：啟動已串接 API 的 Streamlit
+
+```powershell
+uv run streamlit run app_api.py
+```
+
+開啟 http://localhost:8501 後，即可上傳同一植株的 1～5 張 JPEG 或 PNG 圖片進行測試。
+
+若要執行自動化測試：
+
 ```bash
-# 啟動智慧辨識介面
-uv run streamlit run app.py
+uv run pytest -q
 ```
 
 ## 技術規格
