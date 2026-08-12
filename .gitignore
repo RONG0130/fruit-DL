@@ -7,6 +7,7 @@ __pycache__/
 env/
 venv/
 .venv/
+.venv.broken/
 ENV/
 build/
 dist/
@@ -51,6 +52,9 @@ checkpoints/
 *.tmp
 *.log
 *.bak
+
+# FastAPI runtime data
+runtime/
 
 
 # New model outputs
