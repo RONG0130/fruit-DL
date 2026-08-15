@@ -38,30 +38,51 @@ DISEASE_METADATA = {
     "anthracnose": {
         "zh_name": "炭疽病",
         "issue_type": "病害",
+        "scientific_name": (
+            "Colletotrichum gloeosporioides"
+        ),
     },
     "algal_leaf_spot": {
         "zh_name": "藻斑病",
         "issue_type": "病害",
+        "scientific_name": (
+            "Cephaleuros virescens"
+        ),
     },
     "rust": {
         "zh_name": "銹病",
         "issue_type": "病害",
+        "scientific_name": (
+            "Phakopsora cherimoliae"
+        ),
     },
     "pest_whitefly": {
         "zh_name": "番荔枝粉蝨",
         "issue_type": "蟲害",
+        "scientific_name": (
+            "Aleurotrachelus rubi"
+        ),
     },
     "pest_kanzawa_spider_mite": {
         "zh_name": "神澤氏葉蟎",
         "issue_type": "蟲害",
+        "scientific_name": (
+            "Tetranychus kanzawai"
+        ),
     },
     "pest_mealybug": {
         "zh_name": "粉介殼蟲",
         "issue_type": "蟲害",
+        "scientific_name": (
+            "Planococcus minor"
+        ),
     },
     "pest_tea_mite": {
         "zh_name": "茶葉蟎",
         "issue_type": "蟲害",
+        "scientific_name": (
+            "Oligonychus coffeae"
+        ),
     },
 }
 
@@ -76,6 +97,58 @@ def get_metadata(class_name: str) -> dict:
         },
     )
 
+def normalize_prediction_percentages(
+    predictions: list[tuple[str, float]],
+) -> list[tuple[str, float]]:
+    """
+    將整批模型信心度統一轉換成 0～100 的百分比。
+
+    模型可能回傳兩種格式：
+    1. 機率格式：0.0～1.0，例如 0.85
+    2. 百分比格式：0.0～100.0，例如 85.0
+
+    使用整批資料的最高信心度判斷維度，避免將原本的
+    0.19% 誤判成 19%。
+    """
+
+    numeric_predictions = [
+        (
+            class_name,
+            float(confidence),
+        )
+        for class_name, confidence in predictions
+    ]
+
+    highest_confidence = max(
+        confidence
+        for _, confidence in numeric_predictions
+    )
+
+    # 如果整批資料的最高值都沒有超過 1，
+    # 代表這批資料使用的是 0～1 機率格式。
+    multiplier = (
+        100.0
+        if highest_confidence <= 1.0
+        else 1.0
+    )
+
+    return [
+        (
+            class_name,
+
+            # 將結果限制在 0～100，避免異常數值
+            # 造成對外 API 的 confidence 超出規格。
+            max(
+                0.0,
+                min(
+                    confidence * multiplier,
+                    100.0,
+                ),
+            ),
+        )
+        for class_name, confidence
+        in numeric_predictions
+    ]
 
 def normalize_confidence(value: float) -> int:
     """依會議規格將信心度轉成 0～100 整數。"""
@@ -95,8 +168,16 @@ def build_api_result(
     if not merged_predictions:
         raise ValueError("模型沒有回傳任何預測結果")
 
+    # 在門檻判斷及 API 格式轉換前，
+    # 先將整批信心度統一成 0～100。
+    normalized_predictions = (
+        normalize_prediction_percentages(
+            merged_predictions
+        )
+    )
+
     best_class, best_confidence = (
-        merged_predictions[0]
+        normalized_predictions[0]
     )
     best_metadata = get_metadata(best_class)
     normalized_best_confidence = normalize_confidence(
@@ -129,7 +210,7 @@ def build_api_result(
         )
 
     else:
-        for class_name, confidence in merged_predictions:
+        for class_name, confidence in normalized_predictions:
             metadata = get_metadata(class_name)
             normalized_confidence = normalize_confidence(
                 confidence
@@ -147,6 +228,17 @@ def build_api_result(
                         "key": "issue_type",
                         "label": "問題類型",
                         "value": issue_type,
+                    }
+                )
+
+            scientific_name = metadata.get("scientific_name")
+
+            if scientific_name:
+                attributes.append(
+                    {
+                        "key": "scientific_name",
+                        "label": "學名",
+                        "value": scientific_name,
                     }
                 )
 
@@ -200,13 +292,16 @@ def build_api_result(
         "result_blocks": [
             {
                 "type": "diagnosis",
-                "title": "可能病因",
+                "title": "診斷結果",
                 "items": result_items,
             }
         ],
+
+        # 正常診斷沒有補充資料需求時，仍須回傳空陣列。
+        # 讓一站式平台可以固定讀取這個欄位。
+        "need_more_info": [],
+
         "raw_output": {
-            # raw_output 為規格允許的選填原始輸出，
-            # 採用實作指南範例的最小格式。
             "model_label": best_class,
             "model_score": round(
                 best_confidence / 100,

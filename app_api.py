@@ -56,6 +56,13 @@ API_BASE_URL = os.getenv(
     "http://127.0.0.1:8000",
 )
 
+# 呼叫 FastAPI 使用的 Bearer Token。
+# 正式環境不可將 Token 寫死在程式碼或提交至 GitHub。
+API_TOKEN = os.getenv(
+    "ACADEMY_API_TOKEN",
+    "",
+).strip()
+
 # 本機圖片伺服器網址。
 # 正式串接時應替換成物件儲存空間的 Signed URL。
 IMAGE_BASE_URL = os.getenv(
@@ -272,6 +279,7 @@ def get_api_client() -> PlantDiagnosisAPIClient:
 
     return PlantDiagnosisAPIClient(
         base_url=API_BASE_URL,
+        api_token=API_TOKEN,
     )
 
 
@@ -536,8 +544,8 @@ def run_diagnosis(
         st.session_state.latest_result = None
         st.session_state.latest_task_response = None
         st.session_state.latest_error = (
-            "FastAPI 目前無法連線，"
-            "請確認 127.0.0.1:8000 已啟動。"
+            "FastAPI 目前無法使用，請確認服務已啟動，"
+            "且 ACADEMY_API_TOKEN 設定正確。"
         )
         return
 
@@ -1106,7 +1114,9 @@ with st.sidebar:
     if api_client.health_check():
         st.success("FastAPI：正常")
     else:
-        st.error("FastAPI：無法連線")
+        st.error(
+            "FastAPI：無法使用（連線或認證失敗）"
+        )
 
     st.caption(
         f"API 網址：{API_BASE_URL}"

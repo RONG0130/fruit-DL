@@ -82,8 +82,14 @@ def get_val_transform(model_name: str):
 
 
 def create_val_loader(data_dir, val_transform, batch_size, num_workers):
-    val_dir = os.path.join(data_dir, 'val')
-    val_dataset = datasets.ImageFolder(val_dir, transform=val_transform)
+
+    # 直接把傳入路徑當作評估資料夾
+    val_dir = data_dir
+
+    val_dataset = datasets.ImageFolder(
+        val_dir,
+        transform=val_transform
+    )
 
     val_loader = DataLoader(
         val_dataset,
@@ -93,7 +99,7 @@ def create_val_loader(data_dir, val_transform, batch_size, num_workers):
         pin_memory=True
     )
 
-    return val_loader, val_dataset.classes  # class_names
+    return val_loader, val_dataset.classes
 
 
 def load_model(model_name, num_classes, model_path, device):

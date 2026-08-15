@@ -1,5 +1,7 @@
 """會議結果 JSON 規格測試。"""
 
+import pytest
+
 from api.result_mapper import build_api_result
 
 
@@ -48,6 +50,53 @@ def test_confidence_is_integer_between_0_and_100():
         assert isinstance(item["confidence"], int)
         assert 0 <= item["confidence"] <= 100
 
+    # 這批資料的最高值大於 1，代表整批已經是百分比。
+    # 因此 0.19 與 0.11 不可被個別放大為 19% 與 11%。
+    assert [
+        item["confidence"]
+        for item in items
+    ] == [
+        100,
+        0,
+        0,
+    ]
+
+
+def test_probability_scale_is_used_before_threshold():
+    """0～1 機率必須先轉成百分比，再進行門檻判斷。"""
+
+    high_result = build_result(
+        [
+            ("anthracnose", 0.85),
+            ("rust", 0.10),
+            ("healthy", 0.05),
+        ]
+    )
+
+    assert high_result["summary"]["title"] == (
+        "模型分析完成"
+    )
+    assert high_result["summary"]["confidence"] == 85
+    assert high_result["need_more_info"] == []
+    assert [
+        item["confidence"]
+        for item in high_result["result_blocks"][0]["items"]
+    ] == [
+        85,
+        10,
+        5,
+    ]
+
+    low_result = build_result(
+        [("anthracnose", 0.35)]
+    )
+
+    assert low_result["summary"]["title"] == (
+        "目前無法明確判斷"
+    )
+    assert low_result["summary"]["confidence"] == 35
+    assert len(low_result["need_more_info"]) > 0
+
 
 def test_issue_type_key_uses_chinese_value():
     """issue_type 的 key 保持英文，value 必須使用規格中文。"""
@@ -87,8 +136,63 @@ def test_issue_type_key_uses_chinese_value():
     }
 
 
+@pytest.mark.parametrize(
+    ("class_name", "expected_scientific_name"),
+    [
+        (
+            "anthracnose",
+            "Colletotrichum gloeosporioides",
+        ),
+        (
+            "algal_leaf_spot",
+            "Cephaleuros virescens",
+        ),
+        (
+            "rust",
+            "Phakopsora cherimoliae",
+        ),
+        (
+            "pest_whitefly",
+            "Aleurotrachelus rubi",
+        ),
+        (
+            "pest_kanzawa_spider_mite",
+            "Tetranychus kanzawai",
+        ),
+        (
+            "pest_mealybug",
+            "Planococcus minor",
+        ),
+        (
+            "pest_tea_mite",
+            "Oligonychus coffeae",
+        ),
+    ],
+)
+def test_scientific_name_matches_annona_class(
+    class_name: str,
+    expected_scientific_name: str,
+):
+    """各釋迦病蟲害類別都必須輸出對應的正式學名。"""
+
+    result = build_result(
+        [(class_name, 90.0)]
+    )
+    item = result["result_blocks"][0]["items"][0]
+    scientific_name_attribute = find_attribute(
+        item,
+        "scientific_name",
+    )
+
+    assert scientific_name_attribute == {
+        "key": "scientific_name",
+        "label": "學名",
+        "value": expected_scientific_name,
+    }
+
+
 def test_healthy_result_omits_issue_type_attribute():
-    """健康不在允許的問題類型清單中，因此不輸出 issue_type。"""
+    """健康類別不輸出問題類型或病原與害蟲學名。"""
 
     result = build_result(
         [("healthy", 96.0)]
@@ -96,6 +200,10 @@ def test_healthy_result_omits_issue_type_attribute():
     item = result["result_blocks"][0]["items"][0]
 
     assert find_attribute(item, "issue_type") is None
+    assert find_attribute(
+        item,
+        "scientific_name",
+    ) is None
     assert "attributes" not in item
 
 
@@ -127,6 +235,41 @@ def test_raw_output_matches_implementation_guide_example():
     }
 
 
+@pytest.mark.parametrize(
+    (
+        "input_confidence",
+        "expected_confidence",
+        "expected_model_score",
+    ),
+    [
+        (0.85, 85, 0.85),
+        (85.0, 85, 0.85),
+        (1.0, 100, 1.0),
+        (100.0, 100, 1.0),
+        (120.0, 100, 1.0),
+    ],
+)
+def test_model_score_is_always_between_zero_and_one(
+    input_confidence: float,
+    expected_confidence: int,
+    expected_model_score: float,
+):
+    """model_score 必須固定使用 0～1 的機率格式。"""
+
+    result = build_result(
+        [("anthracnose", input_confidence)]
+    )
+    model_score = result["raw_output"][
+        "model_score"
+    ]
+
+    assert result["summary"]["confidence"] == (
+        expected_confidence
+    )
+    assert model_score == expected_model_score
+    assert 0.0 <= model_score <= 1.0
+
+
 def test_model_and_result_keys_match_contract():
     """成功結果的固定欄位須符合實作指南。"""
 
@@ -139,6 +282,7 @@ def test_model_and_result_keys_match_contract():
         "model",
         "summary",
         "result_blocks",
+        "need_more_info",
         "raw_output",
     }
     assert result["schema_version"] == (
@@ -172,6 +316,24 @@ def test_low_confidence_returns_uncertain_result():
     assert item["label"] == "無法明確判定"
     assert item["confidence"] == 35
     assert "attributes" not in item
+    assert "need_more_info" in result
+    assert isinstance(result["need_more_info"], list)
+    assert len(result["need_more_info"]) > 0
     assert result["need_more_info"][0]["type"] == (
         "image"
+    )
+
+
+def test_normal_result_returns_empty_need_more_info():
+    """正常診斷也必須回傳 need_more_info，內容為空陣列。"""
+
+    result = build_result(
+        [("anthracnose", 90.0)]
+    )
+
+    assert "need_more_info" in result
+    assert result["need_more_info"] == []
+    assert isinstance(
+        result["need_more_info"],
+        list,
     )

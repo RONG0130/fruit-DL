@@ -28,11 +28,21 @@ class PlantDiagnosisAPIClient:
     def __init__(
         self,
         base_url: str,
+        api_token: str,
         timeout_seconds: float = 10.0,
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout = httpx.Timeout(
             timeout_seconds
+        )
+        self.headers = (
+            {
+                "Authorization": (
+                    f"Bearer {api_token}"
+                )
+            }
+            if api_token
+            else {}
         )
 
     def _parse_response(
@@ -66,6 +76,7 @@ class PlantDiagnosisAPIClient:
         try:
             response = httpx.get(
                 f"{self.base_url}/v1/health",
+                headers=self.headers,
                 timeout=self.timeout,
             )
 
@@ -99,6 +110,7 @@ class PlantDiagnosisAPIClient:
             response = httpx.post(
                 f"{self.base_url}/v1/tasks",
                 json=payload,
+                headers=self.headers,
                 timeout=self.timeout,
             )
 
@@ -116,6 +128,7 @@ class PlantDiagnosisAPIClient:
         try:
             response = httpx.get(
                 f"{self.base_url}/v1/tasks/{task_id}",
+                headers=self.headers,
                 timeout=self.timeout,
             )
 

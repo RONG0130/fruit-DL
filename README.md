@@ -111,6 +111,7 @@ python evaluate.py --model-path output/best_model.pth --data-dir dataset/test
 終端機 1：啟動 FastAPI（模型只載入一次，因此使用一個 worker）
 
 ```powershell
+$env:ACADEMY_API_TOKEN = "local-development-token"
 uv run uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
@@ -126,6 +127,7 @@ uv run python -m http.server 9000 --bind 127.0.0.1 --directory ".\runtime\stream
 終端機 3：啟動已串接 API 的 Streamlit
 
 ```powershell
+$env:ACADEMY_API_TOKEN = "local-development-token"
 uv run streamlit run app_api.py
 ```
 
