@@ -1,34 +1,41 @@
 services:
-  fruit-dl:
+  fruit-dl-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fruit-dl-app
-    restart: always  # 容器自動重啟
-    ports:
-      - "8501:8501"
-    volumes:
-      # 掛載模型和資料集（避免每次重建映像）
-      - ./output:/app/output
-      - ./dataset:/app/dataset
-      # 掛載設定檔，方便即時調整參數
-      - ./config.yaml:/app/config.yaml
-      # 如果需要保留上傳的圖片
-      - ./uploads:/app/uploads
-    environment:
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-      - STREAMLIT_SERVER_HEADLESS=true
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    networks:
-      - fruit-dl-network
 
-networks:
-  fruit-dl-network:
-    driver: bridge
+    # DOCKERHUB_USERNAME 從 .env 讀取
+    image: ${DOCKERHUB_USERNAME}/fruit-dl-api:1.0.1
+    container_name: fruit-dl-api
+
+    # 指定規格要求的 Linux amd64
+    platform: linux/amd64
+
+    restart: unless-stopped
+
+    # 主機 8000 對應容器 8000
+    ports:
+      - "8000:8000"
+
+    environment:
+      # 必填：API Bearer Token
+      ACADEMY_API_TOKEN: ${ACADEMY_API_TOKEN}
+
+      # 以下為 API 的執行設定
+      TASK_DB_PATH: /app/runtime/tasks.db
+      TASK_TTL_HOURS: "24"
+      CLEANUP_INTERVAL_SECONDS: "300"
+      MIN_DIAGNOSIS_CONFIDENCE: "50"
+      MAX_IMAGE_BYTES: "10485760"
+      MAX_IMAGE_PIXELS: "25000000"
+
+    # 只保存執行後產生的 SQLite 任務資料庫
+    # 不掛載 output，因為模型已經包含在 Image 裡
+    volumes:
+      - fruit-dl-runtime:/app/runtime
+
+    # 將 NVIDIA GPU 提供給 API 容器
+    gpus: all
+
+volumes:
+  fruit-dl-runtime:

@@ -259,6 +259,26 @@ def test_schema_accepts_expired_url_for_async_failure():
     )
 
 
+def test_image_downloader_accepts_utc_z_expires_at():
+    """Docker 的 Python 3.10 也必須能解析 Pydantic 輸出的 UTC Z。"""
+
+    expires_at = (
+        datetime.now(timezone.utc)
+        + timedelta(minutes=30)
+    ).isoformat().replace(
+        "+00:00",
+        "Z",
+    )
+
+    parsed = image_downloader.parse_expires_at(
+        value=expires_at,
+        image_number=1,
+    )
+
+    assert parsed.tzinfo is not None
+    assert parsed.utcoffset() == timedelta(0)
+
+
 def test_expired_url_becomes_image_download_failed(
     tmp_path,
 ):

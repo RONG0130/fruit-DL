@@ -48,6 +48,60 @@ class ImageDownloadError(Exception):
         super().__init__(message)
 
 
+def parse_expires_at(
+    value: object,
+    image_number: int,
+) -> datetime:
+    """
+    將 API 中的 expires_at 轉成含時區的 datetime。
+
+    Pydantic 可能把 UTC 時間序列化成結尾為 Z 的 ISO 8601 字串，
+    但容器使用的 Python 3.10 無法直接用 datetime.fromisoformat()
+    解析 Z，因此先正規化為等價的 +00:00。
+    """
+
+    if isinstance(value, datetime):
+        expires_at = value
+    else:
+        normalized_value = str(value).strip()
+
+        if normalized_value.endswith("Z"):
+            normalized_value = (
+                normalized_value[:-1]
+                + "+00:00"
+            )
+
+        try:
+            expires_at = datetime.fromisoformat(
+                normalized_value
+            )
+        except (
+            TypeError,
+            ValueError,
+        ) as error:
+            raise ImageDownloadError(
+                code="IMAGE_DOWNLOAD_FAILED",
+                message=(
+                    f"第 {image_number} 張圖片的連結"
+                    "到期時間無法解析"
+                ),
+            ) from error
+
+    if (
+        expires_at.tzinfo is None
+        or expires_at
+        <= datetime.now(timezone.utc)
+    ):
+        raise ImageDownloadError(
+            code="IMAGE_DOWNLOAD_FAILED",
+            message=(
+                f"第 {image_number} 張圖片連結已過期"
+            ),
+        )
+
+    return expires_at
+
+
 def validate_downloaded_image(
     image_path: Path,
     expected_mime_type: str,
@@ -158,43 +212,10 @@ async def download_images(
             images,
             start=1,
         ):
-            expires_at_value = image_info.get(
-                "expires_at"
+            parse_expires_at(
+                value=image_info.get("expires_at"),
+                image_number=index,
             )
-
-            if isinstance(
-                expires_at_value,
-                datetime,
-            ):
-                expires_at = expires_at_value
-            else:
-                try:
-                    expires_at = datetime.fromisoformat(
-                        str(expires_at_value)
-                    )
-                except (
-                    TypeError,
-                    ValueError,
-                ) as error:
-                    raise ImageDownloadError(
-                        code="IMAGE_DOWNLOAD_FAILED",
-                        message=(
-                            f"第 {index} 張圖片的連結"
-                            "到期時間無法解析"
-                        ),
-                    ) from error
-
-            if (
-                expires_at.tzinfo is None
-                or expires_at
-                <= datetime.now(timezone.utc)
-            ):
-                raise ImageDownloadError(
-                    code="IMAGE_DOWNLOAD_FAILED",
-                    message=(
-                        f"第 {index} 張圖片連結已過期"
-                    ),
-                )
 
             image_url = str(
                 image_info["image_url"]

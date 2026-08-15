@@ -1,39 +1,55 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-ENV/
-env/
-
 # Git
 .git/
-.gitignore
-.gitattributes
+.github/
 
-# IDE
+# Python 虛擬環境與快取
+.venv/
+.venv.broken/
+.uv-cache/
+.pytest_cache/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+**/*.py[cod]
+
+# 編輯器與作業系統檔案
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Documentation
-*.md
-!README.md
-
-# Large files (mount as volumes instead)
-output/*.pth
-dataset/
-disease/
-
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# Temporary files
-*.log
 .DS_Store
+Thumbs.db
+
+# 訓練資料不需要進入推論映像
+dataset/
+dataset*/
+disease/
+disease*/
+output_v2/
+
+# 不封裝舊的任務資料庫
+runtime/
+
+# output 只允許正式模型與類別檔進入映像
+output/*
+!output/best_model.pth
+!output/classes.json
+
+# Docker 交付映像只需要 FastAPI 推論程式
+tests/
+train.py
+evaluate.py
+check_data.py
+split_dataset.py
+app.py
+app_api.py
+streamlit_api_client.py
+spy.PNG
+
+# 本機設定與機密資料
+.env
+.env.*
+config.yaml
+
+# 其他暫存檔
+*.log
+*.tmp
+*.bak
