@@ -87,3 +87,22 @@ def test_client_sends_bearer_token_to_all_endpoints(
             )
         },
     ]
+
+
+def test_create_task_sends_selected_plant_and_defaults_to_annona(monkeypatch):
+    """選定作物必須進入 POST task；舊呼叫仍使用釋迦。"""
+    payloads = []
+
+    def fake_post(url: str, **kwargs):
+        payloads.append(kwargs["json"])
+        return httpx.Response(200, json={"task_id": "one", "status": "PENDING"})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    client = PlantDiagnosisAPIClient("http://127.0.0.1:8000", "token")
+    client.create_task("first", [{"image_url": "https://example.com/one.jpg"}], plant="tea")
+    client.create_task("second", [], context={"location": "屏東"})
+
+    assert payloads[0]["task"] == {"academy_type": "plant_diagnosis", "plant": "tea"}
+    assert payloads[0]["images"] == [{"image_url": "https://example.com/one.jpg"}]
+    assert payloads[1]["task"] == {"academy_type": "plant_diagnosis", "plant": "annona"}
+    assert payloads[1]["context"] == {"location": "屏東"}

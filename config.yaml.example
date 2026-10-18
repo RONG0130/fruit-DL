@@ -15,7 +15,7 @@ dataset:
     per_class: true       # 確保類別均衡
 
 train:
-  batch_size: 48
+  batch_size: 8
   epochs: 30
-  lr: 0.0001
+  lr: 0.00002
   weight_decay: 0.01

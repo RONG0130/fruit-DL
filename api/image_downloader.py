@@ -112,8 +112,12 @@ def validate_downloaded_image(
     try:
         with Image.open(image_path) as image:
             width, height = image.size
-            actual_mime_type = Image.MIME.get(
-                image.format
+            # 部分 .jpg 帶有 MPF 多影格資訊，Pillow 會回報 MPO；
+            # 首張影格仍是模型可讀取的 JPEG，應按 JPEG 驗證。
+            actual_mime_type = (
+                "image/jpeg"
+                if image.format == "MPO"
+                else Image.MIME.get(image.format)
             )
 
             if width * height > MAX_IMAGE_PIXELS:

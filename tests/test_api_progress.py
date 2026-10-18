@@ -280,9 +280,9 @@ def test_worker_updates_progress_by_real_work_stage(monkeypatch):
 
         def predict(self, image: Path, top_k: int):
             return [
-                ("healthy", 70.0),
-                ("anthracnose", 20.0),
-                ("rust", 10.0),
+                ("Anthracnose", 70.0),
+                ("Rust", 20.0),
+                ("Mealybug", 10.0),
             ][:top_k]
 
         def get_model_info(self):
@@ -378,7 +378,7 @@ def test_worker_updates_progress_by_real_work_stage(monkeypatch):
         100,
     ]
     assert saved_result["raw_output"] == {
-        "model_label": "healthy",
+        "model_label": "Anthracnose",
         "model_score": 0.7,
     }
 

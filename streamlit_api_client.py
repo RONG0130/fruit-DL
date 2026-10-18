@@ -94,6 +94,7 @@ class PlantDiagnosisAPIClient:
         platform_task_id: str,
         images: list[dict],
         context: dict | None = None,
+        plant: str = "annona",
     ) -> dict:
         """呼叫 POST /v1/tasks。"""
 
@@ -102,6 +103,8 @@ class PlantDiagnosisAPIClient:
             "images": images,
             "task": {
                 "academy_type": "plant_diagnosis",
+                # 舊呼叫預設釋迦；新介面送出使用者選定的植物。
+                "plant": plant,
             },
             "context": context,
         }

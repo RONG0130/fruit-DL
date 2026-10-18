@@ -31,71 +31,44 @@ MIN_DIAGNOSIS_CONFIDENCE = (
 )
 
 
-DISEASE_METADATA = {
-    "healthy": {
-        "zh_name": "健康",
+# 以「植物＋原始標籤」查表；同名 Rust 不得跨作物套用物種名。
+# 廣義標籤只填有來源支持的屬、科或目；各名稱與層級見 docs/scientific_name_sources.md。
+PLANT_METADATA = {
+    "annona": {
+        "Algal_leaf_spot": {"zh_name": "藻斑病", "issue_type": "病害", "scientific_name": "Cephaleuros spp."},
+        "Anthracnose": {"zh_name": "炭疽病", "issue_type": "病害", "scientific_name": "Colletotrichum spp."},
+        "Kanzawa_spider_mite": {"zh_name": "神澤氏葉蟎", "issue_type": "蟲害", "scientific_name": "Tetranychus kanzawai"},
+        "Mealybug": {"zh_name": "粉介殼蟲", "issue_type": "蟲害", "scientific_name": "Pseudococcidae"},
+        "Rust": {"zh_name": "銹病", "issue_type": "病害", "scientific_name": "Pucciniales"},
+        "Sugar_apple_whitefly": {"zh_name": "番荔枝粉蝨", "issue_type": "蟲害", "scientific_name": "Aleyrodidae"},
+        "Tea_red_spider_mite": {"zh_name": "茶葉蟎", "issue_type": "蟲害", "scientific_name": "Oligonychus coffeae"},
     },
-    "anthracnose": {
-        "zh_name": "炭疽病",
-        "issue_type": "病害",
-        "scientific_name": (
-            "Colletotrichum gloeosporioides"
-        ),
+    "tea": {
+        "Agromyzidae": {"zh_name": "潛葉蠅", "issue_type": "蟲害", "scientific_name": "Agromyzidae"},
+        "Caloptilia_theivora": {"zh_name": "茶細蛾", "issue_type": "蟲害", "scientific_name": "Caloptilia theivora"},
+        "Oligonychus_coffeae": {"zh_name": "葉螨", "issue_type": "蟲害", "scientific_name": "Oligonychus coffeae"},
+        "Tortrix": {"zh_name": "捲葉蛾", "issue_type": "蟲害", "scientific_name": "Tortricidae"},
     },
-    "algal_leaf_spot": {
-        "zh_name": "藻斑病",
-        "issue_type": "病害",
-        "scientific_name": (
-            "Cephaleuros virescens"
-        ),
+    "legume": {
+        "Liriomyza_spp": {"zh_name": "斑潛蠅", "issue_type": "蟲害", "scientific_name": "Liriomyza spp."},
+        "Rust": {"zh_name": "銹病", "issue_type": "病害", "scientific_name": "Pucciniales"},
+        "bean_aphid": {"zh_name": "蚜蟲", "issue_type": "蟲害", "scientific_name": "Aphididae"},
     },
-    "rust": {
-        "zh_name": "銹病",
-        "issue_type": "病害",
-        "scientific_name": (
-            "Phakopsora cherimoliae"
-        ),
-    },
-    "pest_whitefly": {
-        "zh_name": "番荔枝粉蝨",
-        "issue_type": "蟲害",
-        "scientific_name": (
-            "Aleurotrachelus rubi"
-        ),
-    },
-    "pest_kanzawa_spider_mite": {
-        "zh_name": "神澤氏葉蟎",
-        "issue_type": "蟲害",
-        "scientific_name": (
-            "Tetranychus kanzawai"
-        ),
-    },
-    "pest_mealybug": {
-        "zh_name": "粉介殼蟲",
-        "issue_type": "蟲害",
-        "scientific_name": (
-            "Planococcus minor"
-        ),
-    },
-    "pest_tea_mite": {
-        "zh_name": "茶葉蟎",
-        "issue_type": "蟲害",
-        "scientific_name": (
-            "Oligonychus coffeae"
-        ),
+    "facility_leafy_greens": {
+        "Aphids": {"zh_name": "蚜蟲", "issue_type": "蟲害", "scientific_name": "Aphididae"},
+        "Phaedon_brassicae_Baly": {"zh_name": "十字花科小猿葉蟲", "issue_type": "蟲害", "scientific_name": "Phaedon brassicae"},
+        "Pieris_rapae": {"zh_name": "紋白蝶", "issue_type": "蟲害", "scientific_name": "Pieris rapae"},
+        "Striped_flea_beetle": {"zh_name": "黃條葉蚤", "issue_type": "蟲害", "scientific_name": "Phyllotreta striolata"},
     },
 }
 
 
-def get_metadata(class_name: str) -> dict:
+def get_metadata(class_name: str, plant: str = "annona") -> dict:
     """取得類別的繁體中文名稱與問題類型。"""
 
-    return DISEASE_METADATA.get(
-        class_name,
-        {
-            "zh_name": class_name,
-        },
-    )
+    if class_name in PLANT_METADATA.get(plant, {}):
+        return PLANT_METADATA[plant][class_name]
+    raise ValueError(f"找不到 {plant}/{class_name} 的結果對照")
 
 def normalize_prediction_percentages(
     predictions: list[tuple[str, float]],
@@ -162,6 +135,7 @@ def normalize_confidence(value: float) -> int:
 def build_api_result(
     merged_predictions: list[tuple[str, float]],
     image_count: int,
+    plant: str = "annona",
 ) -> dict:
     """將多張圖片合併預測轉成 API 結果。"""
 
@@ -179,7 +153,7 @@ def build_api_result(
     best_class, best_confidence = (
         normalized_predictions[0]
     )
-    best_metadata = get_metadata(best_class)
+    best_metadata = get_metadata(best_class, plant)
     normalized_best_confidence = normalize_confidence(
         best_confidence
     )
@@ -211,7 +185,7 @@ def build_api_result(
 
     else:
         for class_name, confidence in normalized_predictions:
-            metadata = get_metadata(class_name)
+            metadata = get_metadata(class_name, plant)
             normalized_confidence = normalize_confidence(
                 confidence
             )

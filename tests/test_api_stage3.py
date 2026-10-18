@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -277,6 +278,22 @@ def test_image_downloader_accepts_utc_z_expires_at():
 
     assert parsed.tzinfo is not None
     assert parsed.utcoffset() == timedelta(0)
+
+
+def test_jpg_with_mpo_container_is_accepted():
+    """部分 .jpg 實際含 MPF 多影格資訊，首張仍是可推論的 JPEG。"""
+    sample = (
+        Path(__file__).resolve().parent.parent
+        / "datasets/legume/v1/train/Rust/SP-LG-074.jpg"
+    )
+    if not sample.is_file():
+        pytest.skip("本機未提供豆科 MPO 回歸圖片")
+
+    image_downloader.validate_downloaded_image(
+        image_path=sample,
+        expected_mime_type="image/jpeg",
+        image_number=1,
+    )
 
 
 def test_expired_url_becomes_image_download_failed(

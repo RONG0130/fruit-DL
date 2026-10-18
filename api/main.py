@@ -19,6 +19,7 @@ from fastapi.security import (
 from predict import PlantDiseasePredictor
 
 from api import store
+from api.model_registry import ModelManager, check_artifacts, load_plant_predictor
 from api.schemas import (
     CreateTaskRequest,
     CreateTaskResponse,
@@ -109,21 +110,8 @@ def verify_api_token(
 
 
 def load_predictor() -> PlantDiseasePredictor:
-    """從專案 output 資料夾載入模型。"""
-
-    return PlantDiseasePredictor(
-        model_path=str(
-            PROJECT_ROOT
-            / "output"
-            / "best_model.pth"
-        ),
-        classes_path=str(
-            PROJECT_ROOT
-            / "output"
-            / "classes.json"
-        ),
-        verbose=True,
-    )
+    """預載預設釋迦模型；沿用函式名稱供既有測試替換。"""
+    return load_plant_predictor("annona")
 
 
 @asynccontextmanager
@@ -135,6 +123,7 @@ async def lifespan(app: FastAPI):
     # 先建立所有狀態欄位。
     # 即使模型載入失敗，端點也能安全檢查這些欄位。
     app.state.predictor = None
+    app.state.model_manager = None
     app.state.task_queue = asyncio.Queue()
     app.state.worker_task = None
 
@@ -160,6 +149,12 @@ async def lifespan(app: FastAPI):
         )
 
     else:
+        manager = ModelManager(load_plant_predictor)
+        manager.predictor = app.state.predictor
+        manager.loaded_plant = "annona"
+        app.state.model_manager = manager
+        # 不再額外留一份 predictor 參照，切換時才能真正釋放 GPU。
+        app.state.predictor = None
         # 只有模型成功載入後，才恢復未完成任務並啟動 Worker。
         unfinished_tasks = (
             await store.list_unfinished_tasks()
@@ -173,7 +168,7 @@ async def lifespan(app: FastAPI):
         app.state.worker_task = asyncio.create_task(
             worker_loop(
                 app.state.task_queue,
-                app.state.predictor,
+                manager,
             )
         )
 
@@ -241,10 +236,9 @@ def ensure_model_service_ready() -> None:
     必須同步回傳 HTTP 503。
     """
 
-    predictor = getattr(
-        app.state,
-        "predictor",
-        None,
+    manager = getattr(app.state, "model_manager", None)
+    predictor = manager.predictor if manager is not None else getattr(
+        app.state, "predictor", None
     )
     worker_task = getattr(
         app.state,
@@ -257,7 +251,8 @@ def ensure_model_service_ready() -> None:
         and not worker_task.done()
     )
 
-    if predictor is None or not worker_is_running:
+    # 切換模型的短暫空窗由管理器的鎖保護，不代表服務已停機。
+    if (manager is None and predictor is None) or not worker_is_running:
         raise APIError(
             status_code=503,
             code="MODEL_UNAVAILABLE",
@@ -370,9 +365,26 @@ async def create_task(
     # 模型不可用時不能建立一個永遠無法處理的 PENDING 任務。
     ensure_model_service_ready()
 
-    task, is_new = await store.create_or_get_task(
-        body
-    )
+    # POST 只做快速檔案檢查；大型模型載入交由背景 Worker。
+    # 若在此等待切換 GPU，Streamlit 的 HTTP 逾時會早於任務建立回應。
+    try:
+        check_artifacts(body.task.plant)
+    except Exception:
+        LOGGER.exception("植物 %s 模型不可用", body.task.plant)
+        raise APIError(
+            status_code=503,
+            code="MODEL_UNAVAILABLE",
+            message="模型服務目前無法使用，請稍後再試",
+        )
+
+    try:
+        task, is_new = await store.create_or_get_task(body)
+    except store.TaskPlantConflict:
+        raise APIError(
+            status_code=409,
+            code="TASK_PLANT_CONFLICT",
+            message="同一平台任務編號不可改用其他植物模型",
+        )
 
     if is_new:
         app.state.task_queue.put_nowait(

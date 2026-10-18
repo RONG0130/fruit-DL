@@ -79,6 +79,8 @@ class TaskInfo(APIModel):
     # 不使用 Literal，因為錯誤 academy_type
     # 必須回 UNSUPPORTED_ACADEMY_TYPE，而不是一般驗證錯誤。
     academy_type: str
+    # 舊平台未傳 plant 時仍使用釋迦模型。
+    plant: Literal["annona", "tea", "legume", "facility_leafy_greens"] = "annona"
 
 
 class TaskContext(APIModel):

@@ -1,151 +1,288 @@
-# 植物病蟲害智慧辨識系統 v1.1
+# 植物病蟲害智慧辨識系統
 
-基於 **DINOv3 (ViT Large)** 的深度學習影像分類模型，專為植物病害與蟲害精準辨識而設計。本系統整合了現代化的參數管理與資料平衡技術，提供高效且易於擴充的解決方案。
+本專案以 DINOv3 ViT Large 影像分類模型，提供釋迦、茶葉、豆科及設施小葉菜的病蟲害辨識。FastAPI 負責非同步辨識任務；Streamlit 提供選擇作物、上傳圖片與查看結果的介面。
 
-## 支援的病蟲害類別
+原始碼套件版本為 `1.1.0`。目前發布的 Docker image 標籤維持 `rong0130/fruit-dl-api:1.0.1`；兩者是不同的版本標示。
 
-本系統目前支援以下 8 種類別（與新資料集 `disease` 同步）：
+## 支援作物與類別
 
-| 類別 | 中文名稱 | 類型 |
-|------|---------|------|
-| `healthy` | 健康 | - |
-| `algal_leaf_spot` | 藻斑病 | 病害 |
-| `anthracnose` | 炭疽病 | 病害 |
-| `pest_kanzawa_spider_mite` | 神澤氏葉蟎 | 蟲害 |
-| `pest_mealybug` | 粉介殼蟲 | 蟲害 |
-| `pest_tea_mite` | 茶葉蟎 | 蟲害 |
-| `pest_whitefly` | 番荔枝粉蝨 | 蟲害 |
-| `rust` | 銹病 | 病害 |
+四個部署模型均不含 `healthy` 類別。模型分類結果不能取代現場調查或病原鑑定。
 
-## 核心特色
+| 作物 | API 代碼 | 模型標籤 | 中文名稱 |
+| --- | --- | --- | --- |
+| 釋迦 | `annona` | `Algal_leaf_spot` | 藻斑病 |
+| 釋迦 | `annona` | `Anthracnose` | 炭疽病 |
+| 釋迦 | `annona` | `Kanzawa_spider_mite` | 神澤氏葉蟎 |
+| 釋迦 | `annona` | `Mealybug` | 粉介殼蟲 |
+| 釋迦 | `annona` | `Rust` | 銹病 |
+| 釋迦 | `annona` | `Sugar_apple_whitefly` | 番荔枝粉蝨 |
+| 釋迦 | `annona` | `Tea_red_spider_mite` | 茶葉蟎 |
+| 茶葉 | `tea` | `Agromyzidae` | 潛葉蠅 |
+| 茶葉 | `tea` | `Caloptilia_theivora` | 茶細蛾 |
+| 茶葉 | `tea` | `Oligonychus_coffeae` | 葉螨 |
+| 茶葉 | `tea` | `Tortrix` | 捲葉蛾 |
+| 豆科 | `legume` | `Liriomyza_spp` | 斑潛蠅 |
+| 豆科 | `legume` | `Rust` | 銹病 |
+| 豆科 | `legume` | `bean_aphid` | 蚜蟲 |
+| 設施小葉菜 | `facility_leafy_greens` | `Aphids` | 蚜蟲 |
+| 設施小葉菜 | `facility_leafy_greens` | `Phaedon_brassicae_Baly` | 十字花科小猿葉蟲 |
+| 設施小葉菜 | `facility_leafy_greens` | `Pieris_rapae` | 紋白蝶 |
+| 設施小葉菜 | `facility_leafy_greens` | `Striped_flea_beetle` | 黃條葉蚤 |
 
-- **先進模型**: 採用 Meta 最新推出的 **DINOv3 (ViT Large)** 架構，具備卓越的特徵提取能力。
-- **參數設定化**: 透過 `config.yaml` 統一管理模型、訓練、資料分割與重採樣設定，無需更動程式碼。
-- **資料平衡 (Resample)**: 內建資料集重採樣功能，支援固定數量或比例平衡各類別樣本，解決資料不均問題。
-- **現代化管理**: 使用 `uv` 進行極速依賴管理與環境隔離。
+API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避免不同作物的同名標籤互相混用。部分標籤只能支持屬、科或目層級的學名；對照依據見 `docs/scientific_name_sources.md`。
 
-## FastAPI 與 Streamlit 串接
+## 系統組成
 
-本分支新增非同步植物病蟲害辨識 API，並將結果串接至 `app_api.py`：
+- **FastAPI**：Bearer Token 驗證、非同步任務、SQLite 任務紀錄及標準化 `result_blocks`。
+- **模型管理器**：依作物切換模型，同一時間只持有一個 predictor，以配合 8 GB GPU。
+- **Streamlit**：選擇作物、上傳 1～5 張 JPEG／PNG 圖片、輪詢任務及顯示結果。
+- **Docker image**：只封裝 FastAPI 與四組推論模型；Streamlit 在 image 外執行。
 
-| Method | Path | 用途 |
-|---|---|---|
-| `GET` | `/v1/health` | 健康檢查 |
-| `POST` | `/v1/tasks` | 建立辨識任務 |
-| `GET` | `/v1/tasks/{task_id}` | 輪詢任務狀態與結果 |
+## 模型檔案
 
-API 會依序回傳 `PENDING`、`PROCESSING`、`SUCCEEDED` 或 `FAILED`。執行前請確認 `output/best_model.pth` 與 `output/classes.json` 已準備完成。
+從原始碼啟動 API 或建置 Docker image 前，以下每個目錄都必須有 `best_model.pth` 與 `classes.json`：
 
-## 安裝與快速開始
-
-### 環境需求
-- Python 3.10+
-- NVIDIA GPU (建議) 或 CPU
-- [uv](https://github.com/astral-sh/uv) 套件管理器
-
-### 安裝步驟
-
-```bash
-# 複製專案
-git clone <your-repo-url>
-cd fruit-DL
-
-# 初始化與同步環境
-uv sync
+```text
+runs/
+├── annona/20261006-215715_batch8-lr2e-5/
+├── tea/20261006-223812_batch8-lr2e-5/
+├── legume/20261006-232420_batch8-lr2e-5/
+└── facility_leafy_greens/20261007-000803_batch8-lr2e-5/
 ```
 
-## 資料集準備
+GitHub 不包含模型權重、資料集或執行中的 SQLite 資料庫。若使用已發布的 `rong0130/fruit-dl-api:1.0.1` Docker image，推論模型已包含在 image 內。
 
-### 1. 原始資料結構
-將照片按類別放入 `disease/` 目錄：
-```
-disease/
-  ├── healthy/
-  ├── rust/
-  └── ...
-```
+## 開發環境
 
-### 2. 分割資料集
-系統會根據 `config.yaml` 中的比例（預設 70/15/15）將資料切分為 Train/Val/Test：
-```bash
-# 執行分割
-python split_dataset.py --copy
-```
+- Python 3.10 以上；本機 `.python-version` 指定 3.12。
+- `uv` 套件管理器。
+- NVIDIA GPU 建議用於模型推論及訓練；目前 Docker 設定使用 NVIDIA CUDA 與 `--gpus all`。
+- 本機 API、圖片伺服器及 Streamlit 分別使用 8000、9000、8501 port。
 
-## 參數設定 (`config.yaml`)
-
-所有關鍵參數皆可在 `config.yaml` 中調整：
-```yaml
-model:
-  name: "vit_large_patch16_dinov3.lvd1689m"
-dataset:
-  split: { val_ratio: 0.15, test_ratio: 0.15 }
-  resample: { enabled: true, target: 200 }
-train:
-  batch_size: 8
-  epochs: 30
-  lr: 0.0001
-```
-
-## 使用方式
-
-### 1. 訓練模型
-```bash
-# 開始訓練 (自動讀取 config.yaml)
-python train.py
-
-# 或使用 uv 指定參數覆蓋
-uv run python train.py --batch-size 4 --epochs 50
-```
-
-### 2. 模型評估 (測試集)
-```bash
-# 使用訓練後最佳模型評估獨立測試集
-python evaluate.py --model-path output/best_model.pth --data-dir dataset/test
-```
-
-### 3. Web 介面（FastAPI + Streamlit）
-
-本機測試需在專案根目錄開啟三個終端機。
-
-終端機 1：啟動 FastAPI（模型只載入一次，因此使用一個 worker）
+在 VS Code PowerShell 終端機進入專案後：
 
 ```powershell
-$env:ACADEMY_API_TOKEN = "local-development-token"
+# 安裝鎖定的專案依賴
+uv sync
+
+# 從可提交的範例建立本機訓練設定
+Copy-Item .\config.yaml.example .\config.yaml
+```
+
+## 資料集準備與分割
+
+沿用原專案「先依類別整理照片，再分割為訓練、驗證、測試集」的流程。四種作物須各自準備資料夾，**類別資料夾名稱必須使用上表的模型標籤**，不要以中文資料夾名稱直接訓練。例如茶葉資料：
+
+```text
+disease/
+└── tea/
+    ├── Agromyzidae/
+    ├── Caloptilia_theivora/
+    ├── Oligonychus_coffeae/
+    └── Tortrix/
+```
+
+釋迦、豆科及設施小葉菜分別放在 `disease/annona/`、`disease/legume/`、`disease/facility_leafy_greens/`，並依上表建立各自的類別資料夾。目前部署的四個模型均不含 `healthy`，因此重現這四組模型時不要將 `healthy` 放進來源資料。
+
+`split_dataset.py` 會讀取 `config.yaml` 的分割比例；目前範例設定為訓練 70%、驗證 15%、測試 15%。以下使用 `--copy` 保留原始照片。請在專案根目錄執行，每次使用新的目標目錄，避免混入舊資料：
+
+```powershell
+# 分割釋迦資料
+uv run python .\split_dataset.py --source-dir .\disease\annona --target-dir .\datasets\annona\v1 --copy
+
+# 分割茶葉資料
+uv run python .\split_dataset.py --source-dir .\disease\tea --target-dir .\datasets\tea\v1 --copy
+
+# 分割豆科資料
+uv run python .\split_dataset.py --source-dir .\disease\legume --target-dir .\datasets\legume\v1 --copy
+
+# 分割設施小葉菜資料
+uv run python .\split_dataset.py --source-dir .\disease\facility_leafy_greens --target-dir .\datasets\facility_leafy_greens\v1 --copy
+```
+
+每個分割後的資料集應有相同的類別目錄：
+
+```text
+datasets/tea/v1/
+├── train/
+│   ├── Agromyzidae/
+│   ├── Caloptilia_theivora/
+│   ├── Oligonychus_coffeae/
+│   └── Tortrix/
+├── val/
+│   └── 與 train 相同的類別目錄
+└── test/
+    └── 與 train 相同的類別目錄
+```
+
+分割後可先檢查各資料集。每個類別在 `train`、`val`、`test` 都應有足夠圖片；照片太少時，分割或後續訓練可能失敗。
+
+```powershell
+# 檢查釋迦資料集
+uv run python .\check_data.py --data-dir .\datasets\annona\v1
+
+# 檢查茶葉資料集
+uv run python .\check_data.py --data-dir .\datasets\tea\v1
+
+# 檢查豆科資料集
+uv run python .\check_data.py --data-dir .\datasets\legume\v1
+
+# 檢查設施小葉菜資料集
+uv run python .\check_data.py --data-dir .\datasets\facility_leafy_greens\v1
+```
+
+## 版本化訓練
+
+訓練前確認專案根目錄已有由 `config.yaml.example` 複製而來的 `config.yaml`。範例設定的批次大小為 8、學習率為 `0.00002`。`train_versioned.py` 預設使用 CUDA；若明確要使用 CPU，才加入 `--device cpu`。
+
+四種作物分開執行訓練：
+
+```powershell
+# 訓練釋迦模型
+uv run python .\train_versioned.py --plant annona --data-dir .\datasets\annona\v1 --run-name batch8-lr2e-5 --config .\config.yaml
+
+# 訓練茶葉模型
+uv run python .\train_versioned.py --plant tea --data-dir .\datasets\tea\v1 --run-name batch8-lr2e-5 --config .\config.yaml
+
+# 訓練豆科模型
+uv run python .\train_versioned.py --plant legume --data-dir .\datasets\legume\v1 --run-name batch8-lr2e-5 --config .\config.yaml
+
+# 訓練設施小葉菜模型
+uv run python .\train_versioned.py --plant facility_leafy_greens --data-dir .\datasets\facility_leafy_greens\v1 --run-name batch8-lr2e-5 --config .\config.yaml
+```
+
+每次訓練會建立新的 `runs/<作物>/<時間>_<run-name>/`，不覆蓋舊 run。輸出包含 `best_model.pth`、`classes.json`、訓練指標，以及最佳模型在**驗證集**上的分類報告與混淆矩陣。`test/` 是保留的獨立測試集；不要把訓練自動產生的驗證報告稱為測試集結果。
+
+新訓練的 run **不會自動成為 API 使用的模型**。若要更新部署模型，須先確認 `classes.json` 的類別與順序，並更新 `api/model_registry.py` 中對應的 run 路徑，再重新建置 Docker image。
+
+## 本機啟動 FastAPI 與 Streamlit
+
+以下三個程序請分別放在三個 PowerShell 終端機，並保持終端機開啟。執行前請確認四組模型檔案已放在上述 `runs/` 路徑。
+
+**終端機 1：FastAPI**
+
+```powershell
+# 設定本機測試用 Token；其他終端機須使用相同值
+$env:ACADEMY_API_TOKEN = "<自行設定的測試 Token>"
+
+# 只啟動一個 worker，避免重複載入大型模型
 uv run uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-Swagger 文件：http://127.0.0.1:8000/docs
-
-終端機 2：啟動圖片伺服器，模擬正式環境的 Signed URL
+**終端機 2：圖片伺服器**
 
 ```powershell
+# 建立圖片暫存目錄
 New-Item -ItemType Directory -Force ".\runtime\streamlit_uploads" | Out-Null
+
+# 提供 Streamlit 上傳圖片，供本機 FastAPI 下載
 uv run python -m http.server 9000 --bind 127.0.0.1 --directory ".\runtime\streamlit_uploads"
 ```
 
-終端機 3：啟動已串接 API 的 Streamlit
+**終端機 3：Streamlit**
 
 ```powershell
-$env:ACADEMY_API_TOKEN = "local-development-token"
-uv run streamlit run app_api.py
+# 與 FastAPI 使用相同的 Token
+$env:ACADEMY_API_TOKEN = "<與終端機 1 相同的測試 Token>"
+
+# 指定本機 API 與圖片伺服器
+$env:FRUIT_API_BASE_URL = "http://127.0.0.1:8000"
+$env:STREAMLIT_IMAGE_BASE_URL = "http://127.0.0.1:9000"
+
+# 啟動前端
+uv run streamlit run .\app_api.py
 ```
 
-開啟 http://localhost:8501 後，即可上傳同一植株的 1～5 張 JPEG 或 PNG 圖片進行測試。
+開啟 `http://127.0.0.1:8501`，選擇作物並上傳相同作物的 1～5 張圖片。
 
-若要執行自動化測試：
+## 使用 Docker image 與本機 Streamlit
 
-```bash
+Docker image 只提供 API。先在執行 `docker run` 的目錄建立 `.env`，至少包含一行：
+
+```text
+ACADEMY_API_TOKEN=<自行設定的 Token>
+```
+
+請勿提交或公開 `.env`。在 PowerShell 執行：
+
+```powershell
+# 下載已發布、內含四組模型的 API image
+docker pull rong0130/fruit-dl-api:1.0.1
+
+# 啟動 API；SQLite 資料保存於 Docker volume
+docker run -d --name fruit-dl-api --restart unless-stopped --gpus all --env-file ".\.env" -p 127.0.0.1:8000:8000 -v fruit-dl-runtime:/app/runtime rong0130/fruit-dl-api:1.0.1
+
+# 查看容器狀態
+docker ps --filter "name=fruit-dl-api"
+```
+
+此範例假設 8000 port 尚未被其他 API 佔用，且沒有同名 container。從原始碼執行 `docker build` 或 `docker compose build` 時，建置目錄則必須先備齊四組模型檔案。
+
+若 Streamlit 和圖片伺服器在 Windows 主機上執行，圖片伺服器改用以下指令，讓 Docker 容器能下載圖片：
+
+```powershell
+# 在專案目錄建立上傳圖片目錄
+New-Item -ItemType Directory -Force ".\runtime\streamlit_uploads" | Out-Null
+
+# 讓容器可經由主機網址連接 9000 port
+uv run python -m http.server 9000 --bind 0.0.0.0 --directory ".\runtime\streamlit_uploads"
+```
+
+啟動 Streamlit 前，設定：
+
+```powershell
+# Token 必須與 Docker 容器 .env 中的 ACADEMY_API_TOKEN 相同
+$env:ACADEMY_API_TOKEN = "<與 Docker 容器相同的 Token>"
+
+# Streamlit 從 Windows 主機連到 API
+$env:FRUIT_API_BASE_URL = "http://127.0.0.1:8000"
+
+# FastAPI 從 Docker 容器連回主機上的圖片伺服器
+$env:STREAMLIT_IMAGE_BASE_URL = "http://host.docker.internal:9000"
+
+# 啟動 Streamlit
+uv run streamlit run .\app_api.py
+```
+
+## API 使用方式
+
+三支端點都需要 Bearer Token：
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| `GET` | `/v1/health` | 檢查模型及背景 Worker 是否可服務 |
+| `POST` | `/v1/tasks` | 建立非同步辨識任務 |
+| `GET` | `/v1/tasks/{task_id}` | 查詢狀態、進度或結果 |
+
+`POST /v1/tasks` 的 `task.plant` 可填 `annona`、`tea`、`legume`、`facility_leafy_greens`；省略時預設為 `annona`。請求可包含 1～5 張 JPEG 或 PNG 圖片的可下載 URL。`expires_at` 必須包含時區。
+
+請求結構範例：
+
+```json
+{
+  "platform_task_id": "example-tea-001",
+  "task": {
+    "academy_type": "plant_diagnosis",
+    "plant": "tea"
+  },
+  "images": [
+    {
+      "image_url": "https://example.org/example.jpg",
+      "expires_at": "2026-12-31T23:59:59+08:00",
+      "mime_type": "image/jpeg"
+    }
+  ]
+}
+```
+
+POST 回傳 `task_id` 和 `PENDING`。接著以 GET 查詢，直到狀態為 `SUCCEEDED` 或 `FAILED`。`PROCESSING` 時可能附帶 `progress`；成功時有 `result`，失敗時有 `error`。成功結果包含標準化的 `result_blocks`。
+
+HTTP 錯誤使用 `{"code": "...", "message": "..."}` 格式，例如認證失敗的 `401 UNAUTHORIZED`、請求驗證失敗的 `400 VALIDATION_ERROR`、模型不可用的 `503 MODEL_UNAVAILABLE`，以及未預期錯誤的 `500 INTERNAL_ERROR`。
+
+
+## 測試
+
+```powershell
+# 執行專案測試
 uv run pytest -q
 ```
-
-## 技術規格
-
-- **模型架構**: DINOv3 ViT Large (`vit_large_patch16_dinov3.lvd1689m`)
-- **參數規模**: ~1.2GB 權重檔案
-- **優化技術**: AdamW Optimizer, AMP (混合精度訓練)
-- **硬體需求**: 
-  - 訓練 VRAM: >= 8GB (建議)
-  - 推論 VRAM: ~2GB
-
-### **NPUST DN-LAB © 2026**

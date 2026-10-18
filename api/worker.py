@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -24,6 +25,7 @@ from api.image_downloader import (
     download_images,
 )
 from api.result_mapper import build_api_result
+from api.model_registry import ModelManager
 
 
 LOGGER = logging.getLogger(__name__)
@@ -94,9 +96,19 @@ def predict_single_image(
     )
 
 
+@asynccontextmanager
+async def predictor_for_task(predictor, plant: str):
+    """正式服務由管理器選模；舊測試可直接傳輕量 predictor。"""
+    if isinstance(predictor, ModelManager):
+        async with predictor.use(plant) as selected:
+            yield selected
+    else:
+        yield predictor
+
+
 async def process_task(
     task_id: str,
-    predictor: PlantDiseasePredictor,
+    predictor: PlantDiseasePredictor | ModelManager,
 ) -> None:
     """下載圖片、執行模型並保存結果。"""
 
@@ -161,35 +173,16 @@ async def process_task(
             all_class_predictions = []
             image_count = len(image_paths)
 
-            for image_index, image_path in enumerate(
-                image_paths,
-                start=1,
-            ):
-                # PyTorch 推論是同步工作。
-                # 每張圖片分別使用 to_thread，讓 FastAPI
-                # event loop 能繼續處理健康檢查與 GET 輪詢。
-                predictions = await asyncio.to_thread(
-                    predict_single_image,
-                    predictor,
-                    image_path,
-                )
-
-                all_class_predictions.append(
-                    predictions
-                )
-
-                # 推論階段使用 40～85。
-                # 多張圖片時，每完成一張就會更新一次。
-                inference_progress = 40 + int(
-                    image_index
-                    / image_count
-                    * 45
-                )
-
-                await store.mark_processing(
-                    task_id,
-                    progress=inference_progress,
-                )
+            plant = request_data.get("task", {}).get("plant", "annona")
+            # 整個多圖推論期間持有同一模型，其他請求不能切換 GPU。
+            async with predictor_for_task(predictor, plant) as selected:
+                for image_index, image_path in enumerate(image_paths, start=1):
+                    predictions = await asyncio.to_thread(
+                        predict_single_image, selected, image_path
+                    )
+                    all_class_predictions.append(predictions)
+                    inference_progress = 40 + int(image_index / image_count * 45)
+                    await store.mark_processing(task_id, progress=inference_progress)
 
             # 所有圖片推論完成，開始合併平均機率。
             await store.mark_processing(
@@ -209,6 +202,7 @@ async def process_task(
                     merged_predictions
                 ),
                 image_count=len(image_paths),
+                plant=plant,
             )
 
             # API 結果格式已建立，準備寫入 SQLite。
@@ -262,7 +256,7 @@ async def process_task(
 
 async def worker_loop(
     task_queue: asyncio.Queue,
-    predictor: PlantDiseasePredictor,
+    predictor: PlantDiseasePredictor | ModelManager,
 ) -> None:
     """單一 Worker 依序處理任務。"""
 

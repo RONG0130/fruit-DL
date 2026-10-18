@@ -36,14 +36,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY api/ ./api/
 COPY predict.py ./
 
-# 將正式模型和類別檔直接放入 Image
-COPY output/best_model.pth ./output/best_model.pth
-COPY output/classes.json ./output/classes.json
+# 四組模型須保留 api/model_registry.py 登錄的相對路徑。
+# 只複製推論需要的權重及類別檔，不將驗證報告、圖表放入映像。
+COPY runs/annona/20261006-215715_batch8-lr2e-5/best_model.pth runs/annona/20261006-215715_batch8-lr2e-5/classes.json ./runs/annona/20261006-215715_batch8-lr2e-5/
+COPY runs/tea/20261006-223812_batch8-lr2e-5/best_model.pth runs/tea/20261006-223812_batch8-lr2e-5/classes.json ./runs/tea/20261006-223812_batch8-lr2e-5/
+COPY runs/legume/20261006-232420_batch8-lr2e-5/best_model.pth runs/legume/20261006-232420_batch8-lr2e-5/classes.json ./runs/legume/20261006-232420_batch8-lr2e-5/
+COPY runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/best_model.pth runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/classes.json ./runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/
 
-# 建立 SQLite 任務資料庫目錄，並在建置時確認模型存在
+# 建立 SQLite 任務資料庫目錄，並在建置時核對四組檔案及類別順序。
 RUN mkdir -p /app/runtime \
-    && test -s /app/output/best_model.pth \
-    && test -s /app/output/classes.json
+    && /app/.venv/bin/python -c "from api.model_registry import MODEL_SPECS, check_artifacts; [check_artifacts(plant) for plant in MODEL_SPECS]"
 
 # 規格要求容器內固定監聽 8000
 EXPOSE 8000
@@ -53,5 +55,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD ["/app/.venv/bin/python", "-c", "import os, urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/v1/health', headers={'Authorization': 'Bearer ' + os.environ['ACADEMY_API_TOKEN']}); urllib.request.urlopen(request, timeout=5).read()"]
 
-# 啟動 FastAPI；只有一個 Worker，避免每個 Worker 重複載入 1.2 GB 模型
+# 啟動 FastAPI；只有一個 Worker，由模型管理器依植物切換 GPU 模型。
 CMD ["/app/.venv/bin/uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

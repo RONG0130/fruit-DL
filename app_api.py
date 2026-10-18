@@ -33,6 +33,12 @@ from streamlit_api_client import (
     APIClientError,
     PlantDiagnosisAPIClient,
 )
+from streamlit_plant import (
+    PLANT_OPTIONS,
+    PLANT_CLASSES,
+    selection_fingerprint,
+    clear_task_state,
+)
 
 
 # ============================================================
@@ -140,12 +146,48 @@ st.markdown(
             color: #ffffff;
         }
 
+        /* 側欄是白字，但選擇框是淺色底；明確設定選中值的深色文字。 */
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+            background-color: #e8f1e3 !important;
+            border-color: #a4b99a !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] * {
+            color: #263822 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] svg {
+            fill: #263822 !important;
+        }
+
+        /* 下拉清單是掛在側欄外的浮層，不能只靠側欄選擇器。 */
+        [data-testid="stSelectboxVirtualDropdown"],
+        [data-testid="stSelectboxVirtualDropdown"] [role="option"] {
+            background-color: #e8f1e3 !important;
+            color: #263822 !important;
+        }
+
+        [data-testid="stSelectboxVirtualDropdown"] [role="option"] * {
+            color: #263822 !important;
+        }
+
+        /* 已選項以左側細線標示，不使用反白底色。 */
+        [data-testid="stSelectboxVirtualDropdown"] [role="option"][aria-selected="true"] {
+            border-left: 3px solid #3b4f32;
+        }
+
         /* 側邊欄 Expander */
         [data-testid="stSidebar"] [data-testid="stExpander"] {
             border: 1px solid #768f5f;
             border-radius: 10px;
             background-color: #52663f;
             overflow: hidden;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stExpander"] details > summary,
+        [data-testid="stSidebar"] [data-testid="stExpander"] details > summary:hover,
+        [data-testid="stSidebar"] [data-testid="stExpander"] details > summary:focus {
+            background-color: #52663f !important;
         }
 
         /* Expander 標題 */
@@ -218,22 +260,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-
-# ============================================================
-# 模型類別名稱
-# ============================================================
-
-DISEASE_NAME_ZH = {
-    "healthy": "健康",
-    "anthracnose": "炭疽病",
-    "algal_leaf_spot": "藻斑病",
-    "rust": "銹病",
-    "pest_whitefly": "番荔枝粉蝨",
-    "pest_kanzawa_spider_mite": "神澤氏葉蟎",
-    "pest_mealybug": "粉介殼蟲",
-    "pest_tea_mite": "茶葉蟎",
-}
 
 
 # ============================================================
@@ -527,6 +553,7 @@ def convert_api_result_to_predictions(
 
 def run_diagnosis(
     uploaded_files,
+    plant: str,
     user_description: str,
     location: str,
     environment: str,
@@ -576,6 +603,7 @@ def run_diagnosis(
         created_task = api_client.create_task(
             platform_task_id=platform_task_id,
             images=image_inputs,
+            plant=plant,
             context={
                 "user_description": (
                     user_description or None
@@ -793,13 +821,7 @@ def display_api_result(
         else {}
     )
 
-    best_class_zh = best_item.get(
-        "label",
-        DISEASE_NAME_ZH.get(
-            best_class,
-            best_class,
-        ),
-    )
+    best_class_zh = best_item.get("label", best_class)
 
     if best_class == best_class_zh:
         display_name = best_class_zh
@@ -1111,6 +1133,15 @@ def display_api_result(
 with st.sidebar:
     st.header("系統資訊")
 
+    # 放在案件表單之外，切換植物可立即更新側欄與清除舊結果。
+    selected_plant = st.selectbox(
+        "辨識植物",
+        options=list(PLANT_OPTIONS),
+        format_func=lambda code: PLANT_OPTIONS[code],
+        index=0,
+        key="selected_plant",
+    )
+
     if api_client.health_check():
         st.success("FastAPI：正常")
     else:
@@ -1126,12 +1157,8 @@ with st.sidebar:
         "支援辨識類別",
         expanded=False,
     ):
-        for index, (
-            class_name,
-            chinese_name,
-        ) in enumerate(
-            DISEASE_NAME_ZH.items(),
-            start=1,
+        for index, (class_name, chinese_name) in enumerate(
+            PLANT_CLASSES[selected_plant], start=1
         ):
             st.write(
                 f"{index}. "
@@ -1187,6 +1214,11 @@ st.caption(
     "Streamlit → FastAPI → DINOv3 非同步辨識"
 )
 
+st.info(
+    f"目前選擇：{PLANT_OPTIONS[selected_plant]}。"
+    "請上傳該植物同一植株的照片。"
+)
+
 uploaded_files = st.file_uploader(
     "上傳同一植株的 1～5 張照片",
     type=[
@@ -1213,10 +1245,9 @@ if uploaded_files:
         )
         st.stop()
 
-    fingerprint = (
-        calculate_upload_fingerprint(
-            uploaded_files
-        )
+    fingerprint = selection_fingerprint(
+        calculate_upload_fingerprint(uploaded_files),
+        selected_plant,
     )
 
     # 使用者換了一組圖片時，清除上一組任務結果。
@@ -1227,10 +1258,7 @@ if uploaded_files:
         st.session_state.upload_fingerprint = (
             fingerprint
         )
-        st.session_state.latest_task_id = None
-        st.session_state.latest_result = None
-        st.session_state.latest_task_response = None
-        st.session_state.latest_error = None
+        clear_task_state(st.session_state)
 
     st.subheader("上傳的圖片")
 
@@ -1338,6 +1366,7 @@ if uploaded_files:
     if submitted:
         run_diagnosis(
             uploaded_files=uploaded_files,
+            plant=selected_plant,
             user_description=user_description,
             location=location,
             environment=environment,

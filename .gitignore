@@ -53,6 +53,7 @@ output/
 output_v2/
 logs/
 checkpoints/
+runs/
 
 # 暫存資料
 *.tmp

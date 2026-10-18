@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 """
 
 
+class TaskPlantConflict(Exception):
+    """同一平台任務編號不可改用另一植物模型。"""
+
+
 def utc_now() -> datetime:
     """取得包含時區的 UTC 現在時間。"""
     return datetime.now(timezone.utc)
@@ -190,8 +194,13 @@ async def create_or_get_task(request: Any) -> tuple[dict, bool]:
         )
 
         if existing is not None:
+            stored = row_to_task(existing)
+            old_plant = stored["request"].get("task", {}).get("plant", "annona")
+            new_plant = payload.get("task", {}).get("plant", "annona")
+            if old_plant != new_plant:
+                raise TaskPlantConflict(platform_task_id)
             await db.commit()
-            return row_to_task(existing), False
+            return stored, False
 
         await db.execute(
             """

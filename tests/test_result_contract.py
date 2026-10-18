@@ -32,9 +32,9 @@ def test_confidence_is_integer_between_0_and_100():
 
     result = build_result(
         [
-            ("anthracnose", 99.65),
-            ("rust", 0.19),
-            ("healthy", 0.11),
+            ("Anthracnose", 99.65),
+            ("Rust", 0.19),
+            ("Mealybug", 0.11),
         ]
     )
 
@@ -67,9 +67,9 @@ def test_probability_scale_is_used_before_threshold():
 
     high_result = build_result(
         [
-            ("anthracnose", 0.85),
-            ("rust", 0.10),
-            ("healthy", 0.05),
+            ("Anthracnose", 0.85),
+            ("Rust", 0.10),
+            ("Mealybug", 0.05),
         ]
     )
 
@@ -88,7 +88,7 @@ def test_probability_scale_is_used_before_threshold():
     ]
 
     low_result = build_result(
-        [("anthracnose", 0.35)]
+        [("Anthracnose", 0.35)]
     )
 
     assert low_result["summary"]["title"] == (
@@ -102,7 +102,7 @@ def test_issue_type_key_uses_chinese_value():
     """issue_type 的 key 保持英文，value 必須使用規格中文。"""
 
     disease_result = build_result(
-        [("anthracnose", 90.0)]
+        [("Anthracnose", 90.0)]
     )
     disease_item = disease_result[
         "result_blocks"
@@ -119,7 +119,7 @@ def test_issue_type_key_uses_chinese_value():
     }
 
     pest_result = build_result(
-        [("pest_whitefly", 88.0)]
+        [("Sugar_apple_whitefly", 88.0)]
     )
     pest_item = pest_result[
         "result_blocks"
@@ -140,31 +140,31 @@ def test_issue_type_key_uses_chinese_value():
     ("class_name", "expected_scientific_name"),
     [
         (
-            "anthracnose",
-            "Colletotrichum gloeosporioides",
+            "Anthracnose",
+            "Colletotrichum spp.",
         ),
         (
-            "algal_leaf_spot",
-            "Cephaleuros virescens",
+            "Algal_leaf_spot",
+            "Cephaleuros spp.",
         ),
         (
-            "rust",
-            "Phakopsora cherimoliae",
+            "Rust",
+            "Pucciniales",
         ),
         (
-            "pest_whitefly",
-            "Aleurotrachelus rubi",
+            "Sugar_apple_whitefly",
+            "Aleyrodidae",
         ),
         (
-            "pest_kanzawa_spider_mite",
+            "Kanzawa_spider_mite",
             "Tetranychus kanzawai",
         ),
         (
-            "pest_mealybug",
-            "Planococcus minor",
+            "Mealybug",
+            "Pseudococcidae",
         ),
         (
-            "pest_tea_mite",
+            "Tea_red_spider_mite",
             "Oligonychus coffeae",
         ),
     ],
@@ -191,27 +191,11 @@ def test_scientific_name_matches_annona_class(
     }
 
 
-def test_healthy_result_omits_issue_type_attribute():
-    """健康類別不輸出問題類型或病原與害蟲學名。"""
-
-    result = build_result(
-        [("healthy", 96.0)]
-    )
-    item = result["result_blocks"][0]["items"][0]
-
-    assert find_attribute(item, "issue_type") is None
-    assert find_attribute(
-        item,
-        "scientific_name",
-    ) is None
-    assert "attributes" not in item
-
-
 def test_description_is_diagnosis_basis():
     """description 必須是判斷依據，不放規格外的防治建議。"""
 
     result = build_result(
-        [("anthracnose", 90.0)]
+        [("Anthracnose", 90.0)]
     )
     item = result["result_blocks"][0]["items"][0]
 
@@ -226,11 +210,11 @@ def test_raw_output_matches_implementation_guide_example():
     """raw_output 收斂為規格範例使用的模型標籤與分數。"""
 
     result = build_result(
-        [("anthracnose", 85.0)]
+        [("Anthracnose", 85.0)]
     )
 
     assert result["raw_output"] == {
-        "model_label": "anthracnose",
+        "model_label": "Anthracnose",
         "model_score": 0.85,
     }
 
@@ -257,7 +241,7 @@ def test_model_score_is_always_between_zero_and_one(
     """model_score 必須固定使用 0～1 的機率格式。"""
 
     result = build_result(
-        [("anthracnose", input_confidence)]
+        [("Anthracnose", input_confidence)]
     )
     model_score = result["raw_output"][
         "model_score"
@@ -274,7 +258,7 @@ def test_model_and_result_keys_match_contract():
     """成功結果的固定欄位須符合實作指南。"""
 
     result = build_result(
-        [("anthracnose", 85.0)]
+        [("Anthracnose", 85.0)]
     )
 
     assert set(result) == {
@@ -302,9 +286,9 @@ def test_low_confidence_returns_uncertain_result():
 
     result = build_result(
         [
-            ("anthracnose", 35.0),
-            ("rust", 30.0),
-            ("healthy", 20.0),
+            ("Anthracnose", 35.0),
+            ("Rust", 30.0),
+            ("Mealybug", 20.0),
         ]
     )
 
@@ -328,7 +312,7 @@ def test_normal_result_returns_empty_need_more_info():
     """正常診斷也必須回傳 need_more_info，內容為空陣列。"""
 
     result = build_result(
-        [("anthracnose", 90.0)]
+        [("Anthracnose", 90.0)]
     )
 
     assert "need_more_info" in result
