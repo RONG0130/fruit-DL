@@ -11,7 +11,7 @@ dataset:
   resample:
     enabled: true
     method: "fixed_count" # 選項: "fixed_count" 或 "ratio"
-    target: 200           # 每個類別目標數量
+    target: 300           # 每個類別每個 epoch 的目標取樣次數
     per_class: true       # 確保類別均衡
 
 train:

@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Sampler, Subset
 from torchvision import datasets, transforms
 import timm
 from timm.data import resolve_data_config
@@ -104,7 +104,37 @@ def get_data_transforms(config):
     return train_transform, val_transform
 
 
-def create_dataloaders(data_dir, train_transform, val_transform, batch_size, num_workers, config=None):
+class FixedCountSampler(Sampler):
+    """每個 epoch 為各組取得固定張數，少數類別以有放回抽樣補足。"""
+
+    def __init__(self, groups, target, seed=42):
+        if isinstance(target, bool) or not isinstance(target, int) or target <= 0:
+            raise ValueError("resample target 必須是大於 0 的整數")
+        if not groups or any(not group for group in groups):
+            raise ValueError("無法對沒有圖片的類別重採樣")
+        self.groups = [tuple(group) for group in groups]
+        self.target = target
+        self.seed = seed
+        self.epoch = 0
+
+    def __len__(self):
+        return len(self.groups) * self.target
+
+    def __iter__(self):
+        rng = random.Random(self.seed + self.epoch)
+        self.epoch += 1
+        selected = []
+        for group in self.groups:
+            if len(group) >= self.target:
+                selected.extend(rng.sample(group, self.target))
+            else:
+                selected.extend(group)
+                selected.extend(rng.choices(group, k=self.target - len(group)))
+        rng.shuffle(selected)
+        return iter(selected)
+
+
+def create_dataloaders(data_dir, train_transform, val_transform, batch_size, num_workers, config=None, seed=42):
     """建立訓練和驗證資料載入器，並實作資料重採樣 (Resample) 功能"""
     train_dir = os.path.join(data_dir, 'train')
     val_dir = os.path.join(data_dir, 'val')
@@ -112,52 +142,55 @@ def create_dataloaders(data_dir, train_transform, val_transform, batch_size, num
     # 建立 ImageFolder 資料集
     train_dataset = datasets.ImageFolder(train_dir, transform=train_transform)
     val_dataset = datasets.ImageFolder(val_dir, transform=val_transform)
+    classes = train_dataset.classes
+    sampler = None
 
     # 實作 Resample 邏輯 (僅針對訓練集)
     if config and config.get('dataset', {}).get('resample', {}).get('enabled', False):
         resample_cfg = config['dataset']['resample']
         method = resample_cfg.get('method', 'fixed_count')
-        target = resample_cfg.get('target', 1000)
+        target = resample_cfg.get('target', 300)
         per_class = resample_cfg.get('per_class', True)
 
-        indices = []
-        if per_class:
-            # 對每個類別獨立處理
-            class_to_indices = {i: [] for i in range(len(train_dataset.classes))}
+        if method == 'fixed_count':
+            if per_class:
+                groups = [[] for _ in classes]
+            else:
+                groups = [[]]
             for idx, (_, label) in enumerate(train_dataset.samples):
-                class_to_indices[label].append(idx)
-
-            for label, idxs in class_to_indices.items():
-                if method == 'fixed_count':
-                    num_samples = int(target)
-                else:  # ratio
-                    num_samples = int(len(idxs) * target)
-                
-                # 確保不超過現有樣本數 (除非要實作隨機重複採樣，這裡先採不重複採樣)
-                num_samples = min(num_samples, len(idxs))
-                if num_samples > 0:
-                    indices.extend(random.sample(idxs, num_samples))
+                groups[label if per_class else 0].append(idx)
+            sampler = FixedCountSampler(groups, target, seed=seed)
+            group_names = classes if per_class else ['全部訓練資料']
+            for name, group in zip(group_names, groups):
+                print(
+                    f"Resample {name}: 原圖={len(group)}, 每輪取樣={target}, "
+                    f"重複抽樣={max(0, target - len(group))}"
+                )
+            print(f"每輪訓練取樣總數：{len(sampler)}")
+        elif method == 'ratio':
+            indices = []
+            if per_class:
+                groups = [[] for _ in classes]
+                for idx, (_, label) in enumerate(train_dataset.samples):
+                    groups[label].append(idx)
+            else:
+                groups = [list(range(len(train_dataset)))]
+            for group in groups:
+                count = min(int(len(group) * target), len(group))
+                if count > 0:
+                    indices.extend(random.sample(group, count))
+            if indices:
+                train_dataset = Subset(train_dataset, indices)
+                print(f"Resample ratio={target}: 每輪訓練取樣總數={len(train_dataset)}")
         else:
-            # 全域處理
-            total_samples = len(train_dataset)
-            if method == 'fixed_count':
-                num_samples = int(target)
-            else:  # ratio
-                num_samples = int(total_samples * target)
-            
-            num_samples = min(num_samples, total_samples)
-            if num_samples > 0:
-                indices = random.sample(range(total_samples), num_samples)
-
-        if indices:
-            train_dataset = Subset(train_dataset, indices)
-            print(f"ℹ 已啟動 Resample: 方法={method}, 目標={target}, 最終訓練集大小={len(train_dataset)}")
+            raise ValueError(f"不支援的 resample method：{method}")
 
     # 建立 DataLoader
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=sampler is None,
+        sampler=sampler,
         num_workers=num_workers,
         pin_memory=True
     )
@@ -170,7 +203,7 @@ def create_dataloaders(data_dir, train_transform, val_transform, batch_size, num
         pin_memory=True
     )
 
-    return train_loader, val_loader, getattr(train_dataset, 'classes', train_dataset.dataset.classes if isinstance(train_dataset, Subset) else train_dataset.classes)
+    return train_loader, val_loader, classes
 
 
 def create_model(model_name, num_classes):
@@ -228,12 +261,14 @@ def train_one_epoch(model, train_loader, criterion, optimizer, scaler, device, e
     return epoch_loss, epoch_acc
 
 
-def validate(model, val_loader, criterion, device, epoch):
+def validate(model, val_loader, criterion, device, epoch, num_classes=None):
     """驗證模型"""
     model.eval()
     running_loss = 0.0
     correct = 0
     total = 0
+    all_labels = []
+    all_predictions = []
 
     with torch.no_grad():
         pbar = tqdm(val_loader, desc=f'Epoch {epoch} [Val]')
@@ -251,6 +286,10 @@ def validate(model, val_loader, criterion, device, epoch):
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
+            if num_classes is not None:
+                all_labels.extend(labels.cpu().tolist())
+                all_predictions.extend(predicted.cpu().tolist())
+
             # 更新進度條
             pbar.set_postfix({
                 'loss': f'{loss.item():.4f}',
@@ -259,6 +298,25 @@ def validate(model, val_loader, criterion, device, epoch):
 
     epoch_loss = running_loss / total
     epoch_acc = 100. * correct / total
+
+    if num_classes is not None:
+        from sklearn.metrics import recall_score
+
+        labels = list(range(num_classes))
+        supports = torch.bincount(
+            torch.tensor(all_labels, dtype=torch.long),
+            minlength=num_classes,
+        ).tolist()
+        if any(support == 0 for support in supports):
+            raise ValueError("驗證集有類別沒有圖片，無法計算 Macro Avg Recall")
+        macro_recall = recall_score(
+            all_labels,
+            all_predictions,
+            labels=labels,
+            average="macro",
+            zero_division=0,
+        ) * 100.0
+        return epoch_loss, epoch_acc, macro_recall
 
     return epoch_loss, epoch_acc
 
@@ -339,10 +397,14 @@ def main():
         val_transform,
         batch_size,
         args.num_workers,
-        config=config
+        config=config,
+        seed=args.seed,
     )
 
-    print(f"訓練集大小: {len(train_loader.dataset)}")
+    print(
+        f"訓練資料集: {len(train_loader.dataset)} 張，"
+        f"每個 epoch 取樣: {len(train_loader.sampler)} 次"
+    )
     print(f"驗證集大小: {len(val_loader.dataset)}")
     print(f"類別數量: {len(classes)}")
     print(f"類別名稱: {classes}")

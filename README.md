@@ -151,7 +151,15 @@ uv run python .\train_versioned.py --plant legume --data-dir .\datasets\legume\v
 uv run python .\train_versioned.py --plant facility_leafy_greens --data-dir .\datasets\facility_leafy_greens\v1 --run-name batch8-lr2e-5 --config .\config.yaml
 ```
 
-每次訓練會建立新的 `runs/<作物>/<時間>_<run-name>/`，不覆蓋舊 run。輸出包含 `best_model.pth`、`classes.json`、訓練指標，以及最佳模型在**驗證集**上的分類報告與混淆矩陣。`test/` 是保留的獨立測試集；不要把訓練自動產生的驗證報告稱為測試集結果。
+每次訓練會建立新的 `runs/<作物>/<時間>_<run-name>/`，不覆蓋舊 run。輸出包含 `best_model.pth`、`classes.json`、逐 epoch 的 `metrics.csv`，以及 `evaluation/` 中的訓練／驗證 loss 曲線、驗證集和獨立測試集報告。訓練期間只使用驗證集選出最佳模型；訓練結束後才用同一份 `best_model.pth` 各評估一次 val 和 test。test 成績不參與選模。
+
+`config.yaml` 的 `dataset.resample` 預設啟用每類固定 **300 次／epoch** 的取樣。原圖多於 300 張時，每個 epoch 無放回抽取 300 張；不足時，每張原圖先取一次，再有放回抽樣補足。抽樣索引每個 epoch 重新產生，重複取到的原圖會各自套用隨機資料增強；不會複製圖片檔案。只有 `train/` 使用此設定，`val/` 和 `test/` 維持原有圖片。訓練取樣次數可能高於原圖張數，因此訓練時間也可能增加。
+
+若單次訓練要改用其他張數，在主要訓練入口加入 `--samples-per-class N`，例如 `--samples-per-class 150`。這個參數會覆蓋設定檔的重採樣方式與目標，啟用每類固定張數；省略時使用 `config.yaml`。實際設定寫入 run 的 `effective_config.yaml`，每個 epoch 的取樣總數記錄在 `summary.json`。
+
+訓練期間以驗證集 **Macro Avg Recall**（各類別 recall 的簡單平均）選出 `best_model.pth`。報表同時保留整體 Accuracy、各類 precision／recall／F1／support、Weighted Avg、Loss 與混淆矩陣；Weighted Avg 僅供參考。
+
+新訓練的 run 會自動產生 `evaluation/validation_report.txt`、`confusion_matrix.png`、`val_summary.json`、`test_report.txt`、`test_summary.json`、`test_confusion_matrix.png` 與 `loss_curve.png`。曲線讀取 `metrics.csv`，標示最佳 checkpoint 的 epoch，呈現完整訓練過程。報告包含主要 Macro Avg Recall、checkpoint／epoch、Loss、Accuracy，以及完整 classification report（含 Accuracy、Macro Avg、Weighted Avg）。缺少某類 test 圖片時，主要 Macro Avg Recall 標為 N/A；單類 support 少於 20 張時會附低樣本數提示。每個作物仍使用各自的 train／val／test 目錄與模型，不合併圖片。
 
 新訓練的 run **不會自動成為 API 使用的模型**。若要更新部署模型，須先確認 `classes.json` 的類別與順序，並更新 `api/model_registry.py` 中對應的 run 路徑，再重新建置 Docker image。
 
