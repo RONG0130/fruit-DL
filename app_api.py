@@ -3,7 +3,7 @@
 植物病蟲害智慧辨識系統。
 
 本版本保留學長姐原本的 Streamlit 畫面設計，
-但不再由 Streamlit 直接載入 DINOv3 模型。
+診斷仍由 FastAPI 執行；相似圖片 demo 會在本機另載入 CPU 模型。
 
 新的資料流程：
 1. Streamlit 接收使用者上傳的 1～5 張圖片。
@@ -12,6 +12,7 @@
 4. FastAPI 在背景下載圖片並執行模型。
 5. Streamlit 取得 SUCCEEDED 結果後顯示診斷內容。
 6. GET /v1/health 用來確認 FastAPI 是否正常。
+7. Streamlit 另以同版模型和 FAISS 索引展示同病徵參考照片。
 """
 
 import hashlib
@@ -39,6 +40,7 @@ from streamlit_plant import (
     selection_fingerprint,
     clear_task_state,
 )
+from similarity_demo import DemoPredictorHolder, retrieve_demo_gallery
 
 
 # ============================================================
@@ -53,6 +55,9 @@ UPLOAD_DIRECTORY = (
     PROJECT_ROOT
     / "runtime"
     / "streamlit_uploads"
+)
+FAISS_INDEX_ROOT = Path(
+    os.getenv("STREAMLIT_FAISS_INDEX_ROOT", str(PROJECT_ROOT / "runtime" / "faiss"))
 )
 
 # FastAPI 網址。
@@ -280,6 +285,7 @@ def initialize_session_state() -> None:
         "latest_result": None,
         "latest_task_response": None,
         "latest_error": None,
+        "latest_similarity": None,
     }
 
     for key, value in default_values.items():
@@ -299,8 +305,7 @@ def get_api_client() -> PlantDiagnosisAPIClient:
     """
     建立 FastAPI Client。
 
-    這裡快取的是 API Client，不是 DINOv3 模型。
-    模型只會由 FastAPI 載入。
+    這裡只快取 API Client；相似圖片 demo 的本機模型由獨立 holder 管理。
     """
 
     return PlantDiagnosisAPIClient(
@@ -310,6 +315,12 @@ def get_api_client() -> PlantDiagnosisAPIClient:
 
 
 api_client = get_api_client()
+
+
+@st.cache_resource
+def get_demo_predictor_holder() -> DemoPredictorHolder:
+    """FAISS demo 的 CPU 模型快取，一次只保留一個作物。"""
+    return DemoPredictorHolder()
 
 
 # ============================================================
@@ -566,6 +577,8 @@ def run_diagnosis(
     2. POST /v1/tasks
     3. GET /v1/tasks/{task_id}
     """
+
+    st.session_state.latest_similarity = None
 
     if not api_client.health_check():
         st.session_state.latest_result = None
@@ -1417,6 +1430,49 @@ if uploaded_files:
             ),
         )
 
+        # API 保留原有結果格式；相似圖片只在本機 demo 額外計算。
+        if st.session_state.latest_similarity is None:
+            try:
+                query_images = []
+                for uploaded_file in uploaded_files:
+                    with Image.open(BytesIO(uploaded_file.getvalue())) as image:
+                        query_images.append(image.convert("RGB"))
+                with st.spinner("正在尋找同病徵的相似參考照片…"):
+                    gallery = retrieve_demo_gallery(
+                        plant=selected_plant,
+                        result=st.session_state.latest_result,
+                        images=query_images,
+                        holder=get_demo_predictor_holder(),
+                        index_root=FAISS_INDEX_ROOT,
+                    )
+                st.session_state.latest_similarity = {"gallery": gallery}
+            except (OSError, RuntimeError, ValueError, KeyError) as error:
+                st.session_state.latest_similarity = {"error": str(error)}
+
+        similarity_state = st.session_state.latest_similarity
+        if similarity_state.get("error"):
+            st.warning("相似照片目前無法顯示：" + similarity_state["error"])
+        elif similarity_state.get("gallery") is not None:
+            selected_index, hits = similarity_state["gallery"]
+            predicted_label = st.session_state.latest_result["raw_output"]["model_label"]
+            class_name_zh = dict(PLANT_CLASSES[selected_plant]).get(
+                predicted_label, predicted_label
+            )
+            st.markdown("---")
+            st.subheader(f"{class_name_zh}的相似參考照片")
+            st.caption(
+                f"使用第 {selected_index + 1} 張上傳照片"
+                f"（{uploaded_files[selected_index].name}）搜尋；"
+                "參考照片僅供影像比對，不代表診斷已獲確認。"
+            )
+            if hits:
+                columns = st.columns(len(hits))
+                for rank, (column, hit) in enumerate(zip(columns, hits), start=1):
+                    with column:
+                        st.image(str(hit.path), caption=f"相似參考照片 {rank}", width="stretch")
+            else:
+                st.info("此病徵目前沒有可顯示的參考照片。")
+
 else:
     st.markdown(
         """
@@ -1444,6 +1500,7 @@ else:
             4. Streamlit 會建立 FastAPI 任務。
             5. 系統會定期查詢任務狀態。
             6. 完成後顯示診斷、信心度及建議。
+            7. 若已建立本機索引，另顯示第一名病徵的三張相似參考照片。
 
             ### 拍攝建議
 

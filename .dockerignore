@@ -34,14 +34,14 @@ output/
 # 每個 run 只讓正式權重及類別對照檔進入建置內容。
 # 排除 run 內其他檔案與子目錄，避免打包驗證報告、圖表和檢查點。
 runs/*/*/*
-!runs/annona/20261006-215715_batch8-lr2e-5/best_model.pth
-!runs/annona/20261006-215715_batch8-lr2e-5/classes.json
-!runs/tea/20261006-223812_batch8-lr2e-5/best_model.pth
-!runs/tea/20261006-223812_batch8-lr2e-5/classes.json
-!runs/legume/20261006-232420_batch8-lr2e-5/best_model.pth
-!runs/legume/20261006-232420_batch8-lr2e-5/classes.json
-!runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/best_model.pth
-!runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/classes.json
+!runs/annona/20261026-173435_batch8-lr2e-5/best_model.pth
+!runs/annona/20261026-173435_batch8-lr2e-5/classes.json
+!runs/tea/20261026-191542_batch8-lr2e-5/best_model.pth
+!runs/tea/20261026-191542_batch8-lr2e-5/classes.json
+!runs/legume/20261026-203804_batch8-lr2e-5/best_model.pth
+!runs/legume/20261026-203804_batch8-lr2e-5/classes.json
+!runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5/best_model.pth
+!runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5/classes.json
 
 # Docker 交付映像只需要 FastAPI 推論程式
 tests/

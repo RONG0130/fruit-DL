@@ -36,8 +36,11 @@ def test_sidebar_names_match_plant_translation_tables():
             ("Tortrix", "捲葉蛾"),
         ),
         "legume": (
+            ("Bemisia_tabaci", "銀葉粉蝨"),
             ("Liriomyza_spp", "斑潛蠅"),
             ("Rust", "銹病"),
+            ("Scale_insects", "介殼蟲"),
+            ("Small_green_leafhopper", "小綠葉蟬"),
             ("bean_aphid", "蚜蟲"),
         ),
         "facility_leafy_greens": (
@@ -45,6 +48,7 @@ def test_sidebar_names_match_plant_translation_tables():
             ("Phaedon_brassicae_Baly", "十字花科小猿葉蟲"),
             ("Pieris_rapae", "紋白蝶"),
             ("Striped_flea_beetle", "黃條葉蚤"),
+            ("White_rust", "白銹病"),
         ),
     }
 
@@ -58,6 +62,7 @@ def test_changing_plant_invalidates_existing_image_result():
         "latest_result": {"summary": "old"},
         "latest_task_response": {"status": "SUCCEEDED"},
         "latest_error": "old-error",
+        "latest_similarity": {"selected_index": 0},
         "selected_plant": "tea",
     }
     clear_task_state(state)
@@ -66,6 +71,7 @@ def test_changing_plant_invalidates_existing_image_result():
         "latest_result": None,
         "latest_task_response": None,
         "latest_error": None,
+        "latest_similarity": None,
         "selected_plant": "tea",
     }
 

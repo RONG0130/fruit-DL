@@ -38,10 +38,10 @@ COPY predict.py ./
 
 # 四組模型須保留 api/model_registry.py 登錄的相對路徑。
 # 只複製推論需要的權重及類別檔，不將驗證報告、圖表放入映像。
-COPY runs/annona/20261006-215715_batch8-lr2e-5/best_model.pth runs/annona/20261006-215715_batch8-lr2e-5/classes.json ./runs/annona/20261006-215715_batch8-lr2e-5/
-COPY runs/tea/20261006-223812_batch8-lr2e-5/best_model.pth runs/tea/20261006-223812_batch8-lr2e-5/classes.json ./runs/tea/20261006-223812_batch8-lr2e-5/
-COPY runs/legume/20261006-232420_batch8-lr2e-5/best_model.pth runs/legume/20261006-232420_batch8-lr2e-5/classes.json ./runs/legume/20261006-232420_batch8-lr2e-5/
-COPY runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/best_model.pth runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/classes.json ./runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5/
+COPY runs/annona/20261026-173435_batch8-lr2e-5/best_model.pth runs/annona/20261026-173435_batch8-lr2e-5/classes.json ./runs/annona/20261026-173435_batch8-lr2e-5/
+COPY runs/tea/20261026-191542_batch8-lr2e-5/best_model.pth runs/tea/20261026-191542_batch8-lr2e-5/classes.json ./runs/tea/20261026-191542_batch8-lr2e-5/
+COPY runs/legume/20261026-203804_batch8-lr2e-5/best_model.pth runs/legume/20261026-203804_batch8-lr2e-5/classes.json ./runs/legume/20261026-203804_batch8-lr2e-5/
+COPY runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5/best_model.pth runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5/classes.json ./runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5/
 
 # 建立 SQLite 任務資料庫目錄，並在建置時核對四組檔案及類別順序。
 RUN mkdir -p /app/runtime \

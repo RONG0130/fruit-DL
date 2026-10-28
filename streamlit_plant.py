@@ -27,8 +27,11 @@ PLANT_CLASSES = {
         ("Tortrix", "捲葉蛾"),
     ),
     "legume": (
+        ("Bemisia_tabaci", "銀葉粉蝨"),
         ("Liriomyza_spp", "斑潛蠅"),
         ("Rust", "銹病"),
+        ("Scale_insects", "介殼蟲"),
+        ("Small_green_leafhopper", "小綠葉蟬"),
         ("bean_aphid", "蚜蟲"),
     ),
     "facility_leafy_greens": (
@@ -36,6 +39,7 @@ PLANT_CLASSES = {
         ("Phaedon_brassicae_Baly", "十字花科小猿葉蟲"),
         ("Pieris_rapae", "紋白蝶"),
         ("Striped_flea_beetle", "黃條葉蚤"),
+        ("White_rust", "白銹病"),
     ),
 }
 
@@ -48,6 +52,7 @@ def selection_fingerprint(image_fingerprint: str, plant: str) -> str:
 def clear_task_state(state) -> None:
     """清除前一次診斷資料，保留植物選擇與已上傳圖片。"""
     for key in (
-        "latest_task_id", "latest_result", "latest_task_response", "latest_error"
+        "latest_task_id", "latest_result", "latest_task_response", "latest_error",
+        "latest_similarity",
     ):
         state[key] = None

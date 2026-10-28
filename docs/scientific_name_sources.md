@@ -4,6 +4,10 @@
 
 | 植物 | 模型標籤 | scientific_name | 精度與依據 |
 | --- | --- | --- | --- |
+| 豆科 | Bemisia_tabaci | Bemisia tabaci | 對外中文名稱為銀葉粉蝨；[農業部銀葉粉蝨資料](https://kmweb.moa.gov.tw/subject/subject.php?id=19992)列有 *Bemisia tabaci*（*Bemisia argentifolii*）。影像分類不能判定品系。 |
+| 豆科 | Scale_insects | Coccoidea | 總科；[臺東區農業改良場介殼蟲分類資料](https://www.ttdares.gov.tw/upload/ttdares/files/web_structure/5887/54-014.pdf)。標籤未限定單一物種。 |
+| 豆科 | Small_green_leafhopper | Cicadellidae | 科；[農業部小綠葉蟬資料](https://kmweb.moa.gov.tw/theme_data.php?id=290&theme=pest_map)。僅由此標籤不指定物種。 |
+| 設施小葉菜 | White_rust | Albugo spp. | 屬內物種未定；[農藥所蔬菜白銹病資料](https://public.acri.gov.tw/pdf/2022/%E6%A0%A1%E5%9C%92%E5%8D%88%E9%A4%90%E5%B8%B8%E7%94%A8%E4%BD%9C%E7%89%A9%E5%AE%89%E5%85%A8%E7%94%9F%E7%94%A2%E6%89%8B%E5%86%8A.pdf)列有 *Albugo* spp.；不同小葉菜的病原可能不同。 |
 | 釋迦 | Algal_leaf_spot | Cephaleuros spp. | 屬內物種未定；[植物病理研究指出藻斑病可由多種 Cephaleuros 引起](https://apsjournals.apsnet.org/doi/10.1094/PDIS-01-15-0029-FE)。 |
 | 釋迦 | Anthracnose | Colletotrichum spp. | 屬內物種未定；[臺東區農業改良場番荔枝資料](https://kmweb.moa.gov.tw/redirect_files.php?id=236986&theme=knowledgebase)記載炭疽菌，僅由模型類別無法確認個別菌種。 |
 | 釋迦 | Kanzawa_spider_mite | Tetranychus kanzawai | 物種；[農藥所番荔枝葉蟎資料](https://otserv2.acri.gov.tw/PPM/PLC0101.aspx?ASParam=bUZ0SyUyNjZuJTFmJTE4JTAycCUxYSUxN3BKWVRkLm5jJTdmZXZxayUwMCUwMSUwYyUxMA%3D%3D)。 |

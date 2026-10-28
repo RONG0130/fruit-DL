@@ -30,20 +30,21 @@ class ModelSpec:
 
 # 路徑與類別固定在伺服器端，請求不得指定任意模型檔。
 MODEL_SPECS = {
-    "annona": ModelSpec("runs/annona/20261006-215715_batch8-lr2e-5", (
+    "annona": ModelSpec("runs/annona/20261026-173435_batch8-lr2e-5", (
         "Algal_leaf_spot", "Anthracnose", "Kanzawa_spider_mite",
         "Mealybug", "Rust", "Sugar_apple_whitefly", "Tea_red_spider_mite",
     )),
-    "tea": ModelSpec("runs/tea/20261006-223812_batch8-lr2e-5", (
+    "tea": ModelSpec("runs/tea/20261026-191542_batch8-lr2e-5", (
         "Agromyzidae", "Caloptilia_theivora", "Oligonychus_coffeae", "Tortrix",
     )),
-    "legume": ModelSpec("runs/legume/20261006-232420_batch8-lr2e-5", (
-        "Liriomyza_spp", "Rust", "bean_aphid",
+    "legume": ModelSpec("runs/legume/20261026-203804_batch8-lr2e-5", (
+        "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
+        "Small_green_leafhopper", "bean_aphid",
     )),
     "facility_leafy_greens": ModelSpec(
-        "runs/facility_leafy_greens/20261007-000803_batch8-lr2e-5", (
+        "runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5", (
             "Aphids", "Phaedon_brassicae_Baly", "Pieris_rapae",
-            "Striped_flea_beetle",
+            "Striped_flea_beetle", "White_rust",
         ),
     ),
 }
@@ -67,7 +68,7 @@ def load_plant_predictor(plant: str) -> PlantDiseasePredictor:
     return PlantDiseasePredictor(
         model_path=str(spec.model_path),
         classes_path=str(spec.classes_path),
-        verbose=True,
+        verbose=False,
     )
 
 

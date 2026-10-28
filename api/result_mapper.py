@@ -50,8 +50,11 @@ PLANT_METADATA = {
         "Tortrix": {"zh_name": "捲葉蛾", "issue_type": "蟲害", "scientific_name": "Tortricidae"},
     },
     "legume": {
+        "Bemisia_tabaci": {"zh_name": "銀葉粉蝨", "issue_type": "蟲害", "scientific_name": "Bemisia tabaci"},
         "Liriomyza_spp": {"zh_name": "斑潛蠅", "issue_type": "蟲害", "scientific_name": "Liriomyza spp."},
         "Rust": {"zh_name": "銹病", "issue_type": "病害", "scientific_name": "Pucciniales"},
+        "Scale_insects": {"zh_name": "介殼蟲", "issue_type": "蟲害", "scientific_name": "Coccoidea"},
+        "Small_green_leafhopper": {"zh_name": "小綠葉蟬", "issue_type": "蟲害", "scientific_name": "Cicadellidae"},
         "bean_aphid": {"zh_name": "蚜蟲", "issue_type": "蟲害", "scientific_name": "Aphididae"},
     },
     "facility_leafy_greens": {
@@ -59,6 +62,7 @@ PLANT_METADATA = {
         "Phaedon_brassicae_Baly": {"zh_name": "十字花科小猿葉蟲", "issue_type": "蟲害", "scientific_name": "Phaedon brassicae"},
         "Pieris_rapae": {"zh_name": "紋白蝶", "issue_type": "蟲害", "scientific_name": "Pieris rapae"},
         "Striped_flea_beetle": {"zh_name": "黃條葉蚤", "issue_type": "蟲害", "scientific_name": "Phyllotreta striolata"},
+        "White_rust": {"zh_name": "白銹病", "issue_type": "病害", "scientific_name": "Albugo spp."},
     },
 }
 

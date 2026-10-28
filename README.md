@@ -2,7 +2,7 @@
 
 本專案以 DINOv3 ViT Large 影像分類模型，提供釋迦、茶葉、豆科及設施小葉菜的病蟲害辨識。FastAPI 負責非同步辨識任務；Streamlit 提供選擇作物、上傳圖片與查看結果的介面。
 
-原始碼套件版本為 `1.1.0`。目前發布的 Docker image 標籤維持 `rong0130/fruit-dl-api:1.0.1`；兩者是不同的版本標示。
+原始碼套件版本為 `1.1.0`。Docker image 使用 `rong0130/fruit-dl-api:1.0.1` 標籤；兩者是不同的版本標示。更新模型或程式後須重新建置 image；標籤相同不代表 Docker Hub 上的內容已同步更新。
 
 ## 支援作物與類別
 
@@ -21,13 +21,17 @@
 | 茶葉 | `tea` | `Caloptilia_theivora` | 茶細蛾 |
 | 茶葉 | `tea` | `Oligonychus_coffeae` | 葉螨 |
 | 茶葉 | `tea` | `Tortrix` | 捲葉蛾 |
+| 豆科 | `legume` | `Bemisia_tabaci` | 銀葉粉蝨 |
 | 豆科 | `legume` | `Liriomyza_spp` | 斑潛蠅 |
 | 豆科 | `legume` | `Rust` | 銹病 |
+| 豆科 | `legume` | `Scale_insects` | 介殼蟲 |
+| 豆科 | `legume` | `Small_green_leafhopper` | 小綠葉蟬 |
 | 豆科 | `legume` | `bean_aphid` | 蚜蟲 |
 | 設施小葉菜 | `facility_leafy_greens` | `Aphids` | 蚜蟲 |
 | 設施小葉菜 | `facility_leafy_greens` | `Phaedon_brassicae_Baly` | 十字花科小猿葉蟲 |
 | 設施小葉菜 | `facility_leafy_greens` | `Pieris_rapae` | 紋白蝶 |
 | 設施小葉菜 | `facility_leafy_greens` | `Striped_flea_beetle` | 黃條葉蚤 |
+| 設施小葉菜 | `facility_leafy_greens` | `White_rust` | 白銹病 |
 
 API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避免不同作物的同名標籤互相混用。部分標籤只能支持屬、科或目層級的學名；對照依據見 `docs/scientific_name_sources.md`。
 
@@ -44,13 +48,13 @@ API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避�
 
 ```text
 runs/
-├── annona/20261006-215715_batch8-lr2e-5/
-├── tea/20261006-223812_batch8-lr2e-5/
-├── legume/20261006-232420_batch8-lr2e-5/
-└── facility_leafy_greens/20261007-000803_batch8-lr2e-5/
+├── annona/20261026-173435_batch8-lr2e-5/
+├── tea/20261026-191542_batch8-lr2e-5/
+├── legume/20261026-203804_batch8-lr2e-5/
+└── facility_leafy_greens/20261027-170444_batch8-lr2e-5/
 ```
 
-GitHub 不包含模型權重、資料集或執行中的 SQLite 資料庫。若使用已發布的 `rong0130/fruit-dl-api:1.0.1` Docker image，推論模型已包含在 image 內。
+GitHub 不包含模型權重、資料集或執行中的 SQLite 資料庫。依本專案 Dockerfile 建置的 image 會包含上述四組推論模型。
 
 ## 開發環境
 
@@ -163,6 +167,26 @@ uv run python .\train_versioned.py --plant facility_leafy_greens --data-dir .\da
 
 新訓練的 run **不會自動成為 API 使用的模型**。若要更新部署模型，須先確認 `classes.json` 的類別與順序，並更新 `api/model_registry.py` 中對應的 run 路徑，再重新建置 Docker image。
 
+## Streamlit 相似參考照片（FAISS demo）
+
+此功能只在 `app_api.py` 展示，不改 API 回應，也不加入 Docker image。先為四個作物各建立索引；索引只收錄各自 `train/` 的原始圖片，每張一次，不收錄 `val/`、`test/` 或訓練重採樣的次數。索引與圖片路徑清單儲存在已忽略的 `runtime/faiss/`，本機須保留來源圖片。
+
+```powershell
+# 安裝 demo 專用依賴；Docker 不安裝這組選用依賴
+uv sync --extra demo
+
+# API 與 Streamlit 暫停時建立四作物索引，避免同時占用 GPU 或讀取更新中的索引
+uv run --extra demo python .\build_faiss_demo.py --plant all
+
+# 若本機沒有可用的 CUDA，可加入 --device cpu（建立時間會較久）
+```
+
+如只需重建一個作物，可將 `all` 改成 `annona`、`tea`、`legume` 或 `facility_leafy_greens`。每次更新 `api/model_registry.py` 登錄的模型，須以同一模型重建該作物索引；若本機索引模型版本與目前登錄模型不同，demo 會提示重建。**API 實際執行的模型也須與本機登錄表一致**；目前 API 回應不含可供自動核對的權重版本資訊。
+
+若建立索引時使用 `--output-root` 指定其他目錄，啟動 Streamlit 前也須將 `STREAMLIT_FAISS_INDEX_ROOT` 設成該目錄。
+
+收到 API 合併結果後，Streamlit 會在本機 CPU 逐張計算該病徵分數，選最高分的一張作為檢索圖，僅從相同作物、相同病徵的 `train/` 參考照片顯示最多三張。這會增加 demo 等待時間，但不會重新訓練模型。低信心而要求補拍時不展示參考照片。相似照片是視覺比對資料，不是診斷正確性的證明。
+
 ## 本機啟動 FastAPI 與 Streamlit
 
 以下三個程序請分別放在三個 PowerShell 終端機，並保持終端機開啟。執行前請確認四組模型檔案已放在上述 `runs/` 路徑。
@@ -198,14 +222,22 @@ $env:FRUIT_API_BASE_URL = "http://127.0.0.1:8000"
 $env:STREAMLIT_IMAGE_BASE_URL = "http://127.0.0.1:9000"
 
 # 啟動前端
-uv run streamlit run .\app_api.py
+uv run --extra demo streamlit run .\app_api.py
 ```
 
 開啟 `http://127.0.0.1:8501`，選擇作物並上傳相同作物的 1～5 張圖片。
 
 ## 使用 Docker image 與本機 Streamlit
 
-Docker image 只提供 API。先在執行 `docker run` 的目錄建立 `.env`，至少包含一行：
+Docker image 只提供 API。使用這份原始碼與上述四組模型檔案在專案根目錄建置 image：
+
+```powershell
+docker build -t rong0130/fruit-dl-api:1.0.1 .
+```
+
+如果要使用 Docker Hub 的 image，可以改用 `docker pull rong0130/fruit-dl-api:1.0.1`；請先確認該標籤已推送本次建置的內容。推送指令為 `docker push rong0130/fruit-dl-api:1.0.1`，推送前須登入有權限的 Docker Hub 帳號。
+
+在執行 `docker run` 的目錄建立 `.env`，至少包含一行：
 
 ```text
 ACADEMY_API_TOKEN=<自行設定的 Token>
@@ -214,9 +246,6 @@ ACADEMY_API_TOKEN=<自行設定的 Token>
 請勿提交或公開 `.env`。在 PowerShell 執行：
 
 ```powershell
-# 下載已發布、內含四組模型的 API image
-docker pull rong0130/fruit-dl-api:1.0.1
-
 # 啟動 API；SQLite 資料保存於 Docker volume
 docker run -d --name fruit-dl-api --restart unless-stopped --gpus all --env-file ".\.env" -p 127.0.0.1:8000:8000 -v fruit-dl-runtime:/app/runtime rong0130/fruit-dl-api:1.0.1
 
@@ -224,7 +253,9 @@ docker run -d --name fruit-dl-api --restart unless-stopped --gpus all --env-file
 docker ps --filter "name=fruit-dl-api"
 ```
 
-此範例假設 8000 port 尚未被其他 API 佔用，且沒有同名 container。從原始碼執行 `docker build` 或 `docker compose build` 時，建置目錄則必須先備齊四組模型檔案。
+此範例假設 8000 port 尚未被其他 API 佔用，且沒有同名 container。若已啟動舊版 `fruit-dl-api` 容器，重新建置或拉取 image 後須停止並移除舊容器，再執行上述 `docker run`；`fruit-dl-runtime` volume 仍保存 SQLite 資料。
+
+若要在 Windows 主機的 Streamlit 顯示 FAISS 參考照片，主機仍須備有 `api/model_registry.py` 登錄的四組本機權重、`datasets/<作物>/v1/train/` 原圖及已建立的 `runtime/faiss/` 索引；Docker image 中的模型不會供 Streamlit 直接讀取。缺少這些檔案時，原有 API 診斷仍可使用，但參考照片無法顯示。
 
 若 Streamlit 和圖片伺服器在 Windows 主機上執行，圖片伺服器改用以下指令，讓 Docker 容器能下載圖片：
 
@@ -249,7 +280,7 @@ $env:FRUIT_API_BASE_URL = "http://127.0.0.1:8000"
 $env:STREAMLIT_IMAGE_BASE_URL = "http://host.docker.internal:9000"
 
 # 啟動 Streamlit
-uv run streamlit run .\app_api.py
+uv run --extra demo streamlit run .\app_api.py
 ```
 
 ## API 使用方式

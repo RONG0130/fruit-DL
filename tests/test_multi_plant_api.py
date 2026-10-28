@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from api.schemas import CreateTaskRequest
 from api.result_mapper import build_api_result, get_metadata
-from api.model_registry import MODEL_SPECS, ModelManager
+from api.model_registry import MODEL_SPECS, ModelManager, check_artifacts
 from api import store
 from api import main
 from api.main import app
@@ -59,6 +59,54 @@ def test_all_registered_classes_have_metadata():
             item = build_api_result([(label, 90)], 1, plant=plant)["result_blocks"][0]["items"][0]
             assert item["label"] != label
             assert any(a["key"] == "issue_type" for a in item["attributes"])
+
+
+@pytest.mark.parametrize(
+    ("plant", "run", "classes"),
+    [
+        ("annona", "20261026-173435_batch8-lr2e-5", (
+            "Algal_leaf_spot", "Anthracnose", "Kanzawa_spider_mite",
+            "Mealybug", "Rust", "Sugar_apple_whitefly", "Tea_red_spider_mite",
+        )),
+        ("tea", "20261026-191542_batch8-lr2e-5", (
+            "Agromyzidae", "Caloptilia_theivora", "Oligonychus_coffeae", "Tortrix",
+        )),
+        ("legume", "20261026-203804_batch8-lr2e-5", (
+            "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
+            "Small_green_leafhopper", "bean_aphid",
+        )),
+        ("facility_leafy_greens", "20261027-170444_batch8-lr2e-5", (
+            "Aphids", "Phaedon_brassicae_Baly", "Pieris_rapae",
+            "Striped_flea_beetle", "White_rust",
+        )),
+    ],
+)
+def test_deployed_model_matches_completed_run(plant, run, classes):
+    spec = MODEL_SPECS[plant]
+    assert spec.run == f"runs/{plant}/{run}"
+    assert spec.classes == classes
+    check_artifacts(plant)
+
+
+@pytest.mark.parametrize(
+    ("plant", "label", "chinese_name", "issue_type", "scientific_name"),
+    [
+        ("legume", "Bemisia_tabaci", "銀葉粉蝨", "蟲害", "Bemisia tabaci"),
+        ("legume", "Scale_insects", "介殼蟲", "蟲害", "Coccoidea"),
+        ("legume", "Small_green_leafhopper", "小綠葉蟬", "蟲害", "Cicadellidae"),
+        ("facility_leafy_greens", "White_rust", "白銹病", "病害", "Albugo spp."),
+    ],
+)
+def test_new_model_labels_are_mapped_to_api_result(
+    plant, label, chinese_name, issue_type, scientific_name,
+):
+    result = build_api_result([(label, 90)], 1, plant=plant)
+    item = result["result_blocks"][0]["items"][0]
+    assert item["label"] == chinese_name
+    assert {"key": "issue_type", "label": "問題類型", "value": issue_type} in item["attributes"]
+    assert {
+        "key": "scientific_name", "label": "學名", "value": scientific_name,
+    } in item["attributes"]
 
 
 def test_diagnosis_labels_match_plant_translation_tables():
