@@ -30,20 +30,21 @@ class ModelSpec:
 
 # 路徑與類別固定在伺服器端，請求不得指定任意模型檔。
 MODEL_SPECS = {
-    "annona": ModelSpec("runs/annona/20261026-173435_batch8-lr2e-5", (
-        "Algal_leaf_spot", "Anthracnose", "Kanzawa_spider_mite",
-        "Mealybug", "Rust", "Sugar_apple_whitefly", "Tea_red_spider_mite",
+    "annona": ModelSpec("runs/annona/20261102-175010_batch8-lr2e-5", (
+        "Algal_leaf_spot", "Anthracnose", "Mealybug",
+        "Oligonychus_coffeae", "Rust", "Sugar_apple_whitefly",
     )),
-    "tea": ModelSpec("runs/tea/20261026-191542_batch8-lr2e-5", (
-        "Agromyzidae", "Caloptilia_theivora", "Oligonychus_coffeae", "Tortrix",
+    "tea": ModelSpec("runs/tea/20261102-205448_batch8-lr2e-5", (
+        "Agromyzidae", "Caloptilia_theivora", "Empoasca_onukii",
+        "Oligonychus_coffeae", "Tortrix",
     )),
-    "legume": ModelSpec("runs/legume/20261026-203804_batch8-lr2e-5", (
-        "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
+    "legume": ModelSpec("runs/legume/20261102-231927_batch8-lr2e-5", (
+        "Agromyzidae", "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
         "Small_green_leafhopper", "bean_aphid",
     )),
     "facility_leafy_greens": ModelSpec(
-        "runs/facility_leafy_greens/20261027-170444_batch8-lr2e-5", (
-            "Aphids", "Phaedon_brassicae_Baly", "Pieris_rapae",
+        "runs/facility_leafy_greens/20261103-202056_batch8-lr2e-5", (
+            "Aphids", "Liriomyza_spp", "Phaedon_brassicae_Baly", "Pieris_rapae",
             "Striped_flea_beetle", "White_rust",
         ),
     ),

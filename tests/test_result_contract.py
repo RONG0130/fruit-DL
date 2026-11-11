@@ -156,16 +156,12 @@ def test_issue_type_key_uses_chinese_value():
             "Aleyrodidae",
         ),
         (
-            "Kanzawa_spider_mite",
-            "Tetranychus kanzawai",
+            "Oligonychus_coffeae",
+            "Tetranychidae",
         ),
         (
             "Mealybug",
             "Pseudococcidae",
-        ),
-        (
-            "Tea_red_spider_mite",
-            "Oligonychus coffeae",
         ),
     ],
 )

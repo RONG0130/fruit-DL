@@ -12,15 +12,16 @@
 | --- | --- | --- | --- |
 | 釋迦 | `annona` | `Algal_leaf_spot` | 藻斑病 |
 | 釋迦 | `annona` | `Anthracnose` | 炭疽病 |
-| 釋迦 | `annona` | `Kanzawa_spider_mite` | 神澤氏葉蟎 |
 | 釋迦 | `annona` | `Mealybug` | 粉介殼蟲 |
+| 釋迦 | `annona` | `Oligonychus_coffeae` | 葉螨 |
 | 釋迦 | `annona` | `Rust` | 銹病 |
 | 釋迦 | `annona` | `Sugar_apple_whitefly` | 番荔枝粉蝨 |
-| 釋迦 | `annona` | `Tea_red_spider_mite` | 茶葉蟎 |
 | 茶葉 | `tea` | `Agromyzidae` | 潛葉蠅 |
 | 茶葉 | `tea` | `Caloptilia_theivora` | 茶細蛾 |
+| 茶葉 | `tea` | `Empoasca_onukii` | 小綠葉蟬 |
 | 茶葉 | `tea` | `Oligonychus_coffeae` | 葉螨 |
 | 茶葉 | `tea` | `Tortrix` | 捲葉蛾 |
+| 豆科 | `legume` | `Agromyzidae` | 潛葉蠅 |
 | 豆科 | `legume` | `Bemisia_tabaci` | 銀葉粉蝨 |
 | 豆科 | `legume` | `Liriomyza_spp` | 斑潛蠅 |
 | 豆科 | `legume` | `Rust` | 銹病 |
@@ -28,12 +29,13 @@
 | 豆科 | `legume` | `Small_green_leafhopper` | 小綠葉蟬 |
 | 豆科 | `legume` | `bean_aphid` | 蚜蟲 |
 | 設施小葉菜 | `facility_leafy_greens` | `Aphids` | 蚜蟲 |
+| 設施小葉菜 | `facility_leafy_greens` | `Liriomyza_spp` | 斑潛蠅 |
 | 設施小葉菜 | `facility_leafy_greens` | `Phaedon_brassicae_Baly` | 十字花科小猿葉蟲 |
 | 設施小葉菜 | `facility_leafy_greens` | `Pieris_rapae` | 紋白蝶 |
 | 設施小葉菜 | `facility_leafy_greens` | `Striped_flea_beetle` | 黃條葉蚤 |
 | 設施小葉菜 | `facility_leafy_greens` | `White_rust` | 白銹病 |
 
-API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避免不同作物的同名標籤互相混用。部分標籤只能支持屬、科或目層級的學名；對照依據見 `docs/scientific_name_sources.md`。
+API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避免不同作物的同名標籤互相混用。釋迦的 `Oligonychus_coffeae` 類別合併了神澤氏葉螨與茶葉螨來源，對外僅標示「葉螨／Tetranychidae」；模型標籤本身不能證明所有圖片都是 *O. coffeae*。其他部分標籤也只能支持屬、科或目層級的學名；對照依據見 `docs/scientific_name_sources.md`。
 
 ## 系統組成
 
@@ -48,10 +50,10 @@ API 以「作物＋模型標籤」查中文名稱、問題類型與學名，避�
 
 ```text
 runs/
-├── annona/20261026-173435_batch8-lr2e-5/
-├── tea/20261026-191542_batch8-lr2e-5/
-├── legume/20261026-203804_batch8-lr2e-5/
-└── facility_leafy_greens/20261027-170444_batch8-lr2e-5/
+├── annona/20261102-175010_batch8-lr2e-5/
+├── tea/20261102-205448_batch8-lr2e-5/
+├── legume/20261102-231927_batch8-lr2e-5/
+└── facility_leafy_greens/20261103-202056_batch8-lr2e-5/
 ```
 
 GitHub 不包含模型權重、資料集或執行中的 SQLite 資料庫。依本專案 Dockerfile 建置的 image 會包含上述四組推論模型。
@@ -82,6 +84,7 @@ disease/
 └── tea/
     ├── Agromyzidae/
     ├── Caloptilia_theivora/
+    ├── Empoasca_onukii/
     ├── Oligonychus_coffeae/
     └── Tortrix/
 ```
@@ -111,6 +114,7 @@ datasets/tea/v1/
 ├── train/
 │   ├── Agromyzidae/
 │   ├── Caloptilia_theivora/
+│   ├── Empoasca_onukii/
 │   ├── Oligonychus_coffeae/
 │   └── Tortrix/
 ├── val/

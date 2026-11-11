@@ -14,19 +14,20 @@ PLANT_CLASSES = {
     "annona": (
         ("Algal_leaf_spot", "藻斑病"),
         ("Anthracnose", "炭疽病"),
-        ("Kanzawa_spider_mite", "神澤氏葉蟎"),
         ("Mealybug", "粉介殼蟲"),
+        ("Oligonychus_coffeae", "葉螨"),
         ("Rust", "銹病"),
         ("Sugar_apple_whitefly", "番荔枝粉蝨"),
-        ("Tea_red_spider_mite", "茶葉蟎"),
     ),
     "tea": (
         ("Agromyzidae", "潛葉蠅"),
         ("Caloptilia_theivora", "茶細蛾"),
+        ("Empoasca_onukii", "小綠葉蟬"),
         ("Oligonychus_coffeae", "葉螨"),
         ("Tortrix", "捲葉蛾"),
     ),
     "legume": (
+        ("Agromyzidae", "潛葉蠅"),
         ("Bemisia_tabaci", "銀葉粉蝨"),
         ("Liriomyza_spp", "斑潛蠅"),
         ("Rust", "銹病"),
@@ -36,6 +37,7 @@ PLANT_CLASSES = {
     ),
     "facility_leafy_greens": (
         ("Aphids", "蚜蟲"),
+        ("Liriomyza_spp", "斑潛蠅"),
         ("Phaedon_brassicae_Baly", "十字花科小猿葉蟲"),
         ("Pieris_rapae", "紋白蝶"),
         ("Striped_flea_beetle", "黃條葉蚤"),

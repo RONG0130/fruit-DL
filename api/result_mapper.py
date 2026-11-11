@@ -37,19 +37,20 @@ PLANT_METADATA = {
     "annona": {
         "Algal_leaf_spot": {"zh_name": "藻斑病", "issue_type": "病害", "scientific_name": "Cephaleuros spp."},
         "Anthracnose": {"zh_name": "炭疽病", "issue_type": "病害", "scientific_name": "Colletotrichum spp."},
-        "Kanzawa_spider_mite": {"zh_name": "神澤氏葉蟎", "issue_type": "蟲害", "scientific_name": "Tetranychus kanzawai"},
         "Mealybug": {"zh_name": "粉介殼蟲", "issue_type": "蟲害", "scientific_name": "Pseudococcidae"},
+        "Oligonychus_coffeae": {"zh_name": "葉螨", "issue_type": "蟲害", "scientific_name": "Tetranychidae"},
         "Rust": {"zh_name": "銹病", "issue_type": "病害", "scientific_name": "Pucciniales"},
         "Sugar_apple_whitefly": {"zh_name": "番荔枝粉蝨", "issue_type": "蟲害", "scientific_name": "Aleyrodidae"},
-        "Tea_red_spider_mite": {"zh_name": "茶葉蟎", "issue_type": "蟲害", "scientific_name": "Oligonychus coffeae"},
     },
     "tea": {
         "Agromyzidae": {"zh_name": "潛葉蠅", "issue_type": "蟲害", "scientific_name": "Agromyzidae"},
         "Caloptilia_theivora": {"zh_name": "茶細蛾", "issue_type": "蟲害", "scientific_name": "Caloptilia theivora"},
+        "Empoasca_onukii": {"zh_name": "小綠葉蟬", "issue_type": "蟲害", "scientific_name": "Empoasca onukii"},
         "Oligonychus_coffeae": {"zh_name": "葉螨", "issue_type": "蟲害", "scientific_name": "Oligonychus coffeae"},
         "Tortrix": {"zh_name": "捲葉蛾", "issue_type": "蟲害", "scientific_name": "Tortricidae"},
     },
     "legume": {
+        "Agromyzidae": {"zh_name": "潛葉蠅", "issue_type": "蟲害", "scientific_name": "Agromyzidae"},
         "Bemisia_tabaci": {"zh_name": "銀葉粉蝨", "issue_type": "蟲害", "scientific_name": "Bemisia tabaci"},
         "Liriomyza_spp": {"zh_name": "斑潛蠅", "issue_type": "蟲害", "scientific_name": "Liriomyza spp."},
         "Rust": {"zh_name": "銹病", "issue_type": "病害", "scientific_name": "Pucciniales"},
@@ -59,6 +60,7 @@ PLANT_METADATA = {
     },
     "facility_leafy_greens": {
         "Aphids": {"zh_name": "蚜蟲", "issue_type": "蟲害", "scientific_name": "Aphididae"},
+        "Liriomyza_spp": {"zh_name": "斑潛蠅", "issue_type": "蟲害", "scientific_name": "Liriomyza spp."},
         "Phaedon_brassicae_Baly": {"zh_name": "十字花科小猿葉蟲", "issue_type": "蟲害", "scientific_name": "Phaedon brassicae"},
         "Pieris_rapae": {"zh_name": "紋白蝶", "issue_type": "蟲害", "scientific_name": "Pieris rapae"},
         "Striped_flea_beetle": {"zh_name": "黃條葉蚤", "issue_type": "蟲害", "scientific_name": "Phyllotreta striolata"},

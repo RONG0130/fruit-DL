@@ -64,19 +64,20 @@ def test_all_registered_classes_have_metadata():
 @pytest.mark.parametrize(
     ("plant", "run", "classes"),
     [
-        ("annona", "20261026-173435_batch8-lr2e-5", (
-            "Algal_leaf_spot", "Anthracnose", "Kanzawa_spider_mite",
-            "Mealybug", "Rust", "Sugar_apple_whitefly", "Tea_red_spider_mite",
+        ("annona", "20261102-175010_batch8-lr2e-5", (
+            "Algal_leaf_spot", "Anthracnose", "Mealybug",
+            "Oligonychus_coffeae", "Rust", "Sugar_apple_whitefly",
         )),
-        ("tea", "20261026-191542_batch8-lr2e-5", (
-            "Agromyzidae", "Caloptilia_theivora", "Oligonychus_coffeae", "Tortrix",
+        ("tea", "20261102-205448_batch8-lr2e-5", (
+            "Agromyzidae", "Caloptilia_theivora", "Empoasca_onukii",
+            "Oligonychus_coffeae", "Tortrix",
         )),
-        ("legume", "20261026-203804_batch8-lr2e-5", (
-            "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
+        ("legume", "20261102-231927_batch8-lr2e-5", (
+            "Agromyzidae", "Bemisia_tabaci", "Liriomyza_spp", "Rust", "Scale_insects",
             "Small_green_leafhopper", "bean_aphid",
         )),
-        ("facility_leafy_greens", "20261027-170444_batch8-lr2e-5", (
-            "Aphids", "Phaedon_brassicae_Baly", "Pieris_rapae",
+        ("facility_leafy_greens", "20261103-202056_batch8-lr2e-5", (
+            "Aphids", "Liriomyza_spp", "Phaedon_brassicae_Baly", "Pieris_rapae",
             "Striped_flea_beetle", "White_rust",
         )),
     ],
@@ -91,10 +92,14 @@ def test_deployed_model_matches_completed_run(plant, run, classes):
 @pytest.mark.parametrize(
     ("plant", "label", "chinese_name", "issue_type", "scientific_name"),
     [
+        ("annona", "Oligonychus_coffeae", "葉螨", "蟲害", "Tetranychidae"),
+        ("tea", "Empoasca_onukii", "小綠葉蟬", "蟲害", "Empoasca onukii"),
+        ("legume", "Agromyzidae", "潛葉蠅", "蟲害", "Agromyzidae"),
         ("legume", "Bemisia_tabaci", "銀葉粉蝨", "蟲害", "Bemisia tabaci"),
         ("legume", "Scale_insects", "介殼蟲", "蟲害", "Coccoidea"),
         ("legume", "Small_green_leafhopper", "小綠葉蟬", "蟲害", "Cicadellidae"),
         ("facility_leafy_greens", "White_rust", "白銹病", "病害", "Albugo spp."),
+        ("facility_leafy_greens", "Liriomyza_spp", "斑潛蠅", "蟲害", "Liriomyza spp."),
     ],
 )
 def test_new_model_labels_are_mapped_to_api_result(
@@ -125,19 +130,21 @@ def test_diagnosis_labels_match_plant_translation_tables():
     [
         ("annona", "Algal_leaf_spot", "Cephaleuros spp."),
         ("annona", "Anthracnose", "Colletotrichum spp."),
-        ("annona", "Kanzawa_spider_mite", "Tetranychus kanzawai"),
         ("annona", "Mealybug", "Pseudococcidae"),
+        ("annona", "Oligonychus_coffeae", "Tetranychidae"),
         ("annona", "Rust", "Pucciniales"),
         ("annona", "Sugar_apple_whitefly", "Aleyrodidae"),
-        ("annona", "Tea_red_spider_mite", "Oligonychus coffeae"),
         ("tea", "Agromyzidae", "Agromyzidae"),
         ("tea", "Caloptilia_theivora", "Caloptilia theivora"),
+        ("tea", "Empoasca_onukii", "Empoasca onukii"),
         ("tea", "Oligonychus_coffeae", "Oligonychus coffeae"),
         ("tea", "Tortrix", "Tortricidae"),
+        ("legume", "Agromyzidae", "Agromyzidae"),
         ("legume", "Liriomyza_spp", "Liriomyza spp."),
         ("legume", "Rust", "Pucciniales"),
         ("legume", "bean_aphid", "Aphididae"),
         ("facility_leafy_greens", "Aphids", "Aphididae"),
+        ("facility_leafy_greens", "Liriomyza_spp", "Liriomyza spp."),
         ("facility_leafy_greens", "Phaedon_brassicae_Baly", "Phaedon brassicae"),
         ("facility_leafy_greens", "Pieris_rapae", "Pieris rapae"),
         ("facility_leafy_greens", "Striped_flea_beetle", "Phyllotreta striolata"),
